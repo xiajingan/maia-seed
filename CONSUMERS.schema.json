@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maia.local/schemas/seed-consumers.v1.json",
+  "title": "Maia Seed consumer dependency registry",
+  "type": "object",
+  "required": ["schema_version", "schema", "owner", "policy", "dependencies"],
+  "properties": {
+    "schema_version": {"const": "seed-consumers.v1"},
+    "schema": {"const": "CONSUMERS.schema.json"},
+    "owner": {"const": "maia-seed"},
+    "policy": {
+      "type": "object",
+      "required": ["one_edge_per_record", "allowed_consumers", "forbidden_consumers", "ready_requires", "breaking_change_requires", "artifact_rule"],
+      "properties": {
+        "one_edge_per_record": {"const": true},
+        "allowed_consumers": {
+          "const": ["maia-mud", "maia-stem", "maia-mint", "maia-tea", "maia-iris", "maia-sop"]
+        },
+        "forbidden_consumers": {
+          "const": ["maia-celt", "maia-vine", "maia-sage"]
+        },
+        "ready_requires": {
+          "const": ["surface", "extras", "change_type", "version", "sha256", "consumer_test", "upgrade", "rollback"]
+        },
+        "breaking_change_requires": {"const": ["removal_version"]},
+        "artifact_rule": {"const": "build-once-promote-same-digest"}
+      },
+      "additionalProperties": false
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/dependency"}
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "dependency": {
+      "type": "object",
+      "required": ["id", "change_type", "consumer_repo", "consumer_story", "seed_task", "surface", "extras", "version", "sha256", "consumer_test", "upgrade", "rollback", "removal_version"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9-]+--seed-[0-9]{3}$"},
+        "change_type": {"enum": ["additive", "breaking"]},
+        "consumer_repo": {"enum": ["maia-mud", "maia-stem", "maia-mint", "maia-tea", "maia-iris", "maia-sop"]},
+        "consumer_story": {"type": "string", "minLength": 1},
+        "seed_task": {"type": "string", "pattern": "^SEED-[0-9]{3}$"},
+        "surface": {"type": "string", "pattern": "^seed\\."},
+        "extras": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "version": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "consumer_test": {"type": "string", "minLength": 1},
+        "upgrade": {"type": "string", "minLength": 1},
+        "rollback": {"type": "string", "minLength": 1},
+        "removal_version": {"type": ["string", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"change_type": {"const": "breaking"}}},
+          "then": {
+            "properties": {"removal_version": {"type": "string", "minLength": 1}}
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}
