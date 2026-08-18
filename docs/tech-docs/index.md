@@ -3,7 +3,7 @@
 > ⚠️ **MAI-Harness 框架文件** — 请勿在项目中修改。如需变更请在框架工程中修改并覆盖到此项目。
 
 > 技术方案文档索引。所有 AI 生成的技术方案文档保存于此目录。
-> 技术方案须关联对应的 User Story（见 [/USER_STORIES.md](/USER_STORIES.md)）。
+> 技术方案须关联对应的 User Story（见 [USER_STORIES.md](../../USER_STORIES.md)）。
 
 ## 文档规范
 
@@ -15,6 +15,6 @@
 
 | 文件 | 模块 | 关联需求 | 验证状态 |
 |------|------|---------|---------|
-| _(待生成)_ | — | — | — |
+| [seed-api-stability-matrix.md](seed-api-stability-matrix.md) | Seed API 稳定性与 Assignment 迁移 | SEED-022/023 | draft |
 
 <!-- 验证状态: verified（已验证，与代码一致）/ stale（过期，需更新）/ draft（草稿） -->

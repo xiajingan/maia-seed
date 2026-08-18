@@ -1,8 +1,8 @@
 # Seed 用户故事
 
-> 本文件是 Seed 的消费驱动能力清单，不是独立产品迭代路线。每项能力必须由一个 Python 后端工程 Story 拉动，并在该消费工程的 Sprint 中作为跨仓库子任务交付。
+> 本文件是 Seed 的公共能力输入真源，不是独立产品路线。外部工程通过统一 `dependency` Assignment 提出需求；Seed 自主接收、映射本地 Story、规划并执行 Sprint，再以 Delivery 更新交付状态。
 
-能力成熟度为 S0 kernel/contracts → S1 framework/middleware adapters → S2 reliable client → S3 compatibility kit。下列条目只有在下方“消费 Story 映射”出现具体后端 Story 且该 Story 进入迭代后才能进入 `ready`；每个故事都必须有纯核心测试、适用的 adapter 测试、Secret canary、同一 digest 的 staged/release wheel 和真实消费者证据。消费 Story 未完成前，Seed 子任务不得单独标记业务交付完成。
+能力成熟度为 S0 kernel/contracts → S1 framework/middleware adapters → S2 reliable client → S3 compatibility kit。Assignment 仅在 Seed 主动规划时进入本文件和 Sprint；`pending` 不等于已承诺，`planned` 必须关联本地 Story/Sprint，`delivered` 必须存在含精确 version + SHA-256 的 `dependency-package` Delivery。每个故事都必须有纯核心测试、适用的 adapter 测试、Secret canary 和消费者契约证据。
 
 | ID | 用户故事 | 验收标准 | 来源 | 优先级 | 状态 |
 |---|---|---|---|---|---|
@@ -32,16 +32,14 @@
 | SEED-019 | 作为资源服务开发者，我希望用唯一无状态算法合并权限事实。 | `access-scope-kernel.v1` 输入 capability/effective Own 与本地 Creator/Owner/User，输出 scope/来源；不持有策略或组图；Mud/Stem/Tea 运行相同正反夹具；破坏变化升 major 并有消费者迁移。 | FND-007～011/018/020 | 继承消费 Story | `draft` |
 | SEED-020 | 作为 Python 服务开发者，我希望复用可替换的 Redis 访问基础。 | 连接/关闭、健康检查、超时、序列化和观测可替换；业务工程自有 key/TTL/一致性语义；不形成全局 client 或业务缓存 API。 | 消费工程 Story/FND-021/022 | 继承消费 Story | `draft` |
 | SEED-021 | 作为 Python 服务开发者，我希望复用 OceanBase 连接基础。 | Engine/Session 生命周期、连接池、健康检查和方言探测可独立测试；业务 Model/Repository/SQL/Alembic 留在所有者工程。 | 消费工程 Story/FND-021/022 | 继承消费 Story | `draft` |
-| SEED-022 | 作为消费工程维护者，我希望在自己的迭代中扩展 Seed。 | 消费 Story 显式登记 Seed 子任务；同一 digest 的 staged wheel 通过真实消费者 Test 后原样提升；version + hash 锁定可追溯；Seed 不反向依赖消费者。 | FND-020/022/024 | 继承消费 Story | `draft` |
-| SEED-023 | 作为发布负责人，我希望跨仓库升级可迁移和回滚。 | 采用 add→migrate→remove；登记兼容矩阵、消费者、升级/回滚和旧入口删除版本；Test/Production 不用 Git/path 依赖。 | FND-020/024 | 继承消费 Story | `draft` |
+| SEED-022 | 作为依赖需求提出者，我希望异步请求 Seed 公共能力。 | `dependency` Assignment 记录来源 Story/Task、目标行为、无业务语义边界和验收；不预填未知版本、不启动 Seed Sprint；Seed Response 必须自校验、绑定原 Assignment，接受时映射本地 Story。 | FND-020/022/024 | 继承 Assignment | `draft` |
+| SEED-023 | 作为发布负责人，我希望跨仓库升级可迁移和回滚。 | 采用 add→migrate→remove；登记兼容矩阵、消费者、升级/回滚和旧入口删除版本；首次 Delivery 前配置组织真实信任根及签名/SBOM/provenance verifier，空配置必须 fail closed；Test/Production 不用 Git/path 依赖。 | FND-020/024 | 继承消费 Story | `draft` |
 
-## 消费 Story 映射
+## Assignment 输入与迭代归属
 
-[CONSUMERS.yaml](CONSUMERS.yaml) 是唯一可机器执行的依赖真源，[CONSUMERS.schema.json](CONSUMERS.schema.json) 定义结构与 breaking-change 条件。一条记录只表达一个 `(consumer_repo, consumer_story, seed_task)`。各消费仓库不复制映射表；Gate 从对应仓库 `USER_STORIES.md` 读取 Story 状态，进入 `ready` 前校验 surface、extras、change type、最终 version、SHA-256、消费者 Test、升级、回滚及 breaking change 的删除版本，同时校验 ID/三元组唯一和允许消费者。`USER_STORIES.md` 只定义能力和验收，不维护第二份反向映射。
-
-## 迭代归属规则
-
-- Seed 条目不自行生成业务 Sprint；它只能挂接到 Mud、Stem、Tea、Mint、Iris、Sop 等 Python 后端消费 Story。
-- 通用维护或安全修复必须先在每个受影响后端建立具体 Maintenance/消费 Story 和单边依赖记录；Seed 不得独立立项。
+- `docs/assignments/inbox/` 是 Seed 的统一外部输入池；Assignment 本体不可修改，Seed 独占响应和 Delivery 状态。
+- `seed-dep-mud-p0-002-secrets` 是由 Mud Secret/APPManager Story `MUD-P0-002` 在迁移后补充的 `SEED-013` 真实输入，当前仅为 `pending`；现有源码不等于已纳入 Sprint 或可交付，必须由 Seed 后续主动接受并映射本地 Story/Sprint。
+- Seed 只在用户主动规划时处理输入；接受后映射本地 Story/Sprint，不能由源工程远程启动。
+- 通用维护或安全修复可由已知消费者 Assignment 或 Seed 本地 Maintenance Story 触发；必须登记影响面和迁移验证。
 - Celt、Vine、Sage 不依赖 Seed；终端、Bridge、前端契约由各协议/服务所有者维护。
-- 每个后端消费工程的 Story 完成证据必须记录 Seed version + SHA-256、实际 extras、契约测试、升级与回滚结果。
+- 每个 `delivered` 结果必须先有有效 accepted Response，并绑定 Seed Sprint、源码提交、`dependency-package` Artifact、version + SHA-256、实际 extras、契约测试、升级与回滚结果；配置的 verifier 必须真实验证签名、SBOM 与 Build Once 并生成绑定 Delivery/Artifact 身份的受管 receipt。

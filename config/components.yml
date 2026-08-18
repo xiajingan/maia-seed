@@ -1,7 +1,11 @@
 version: 1
 components:
-  harness-runtime:
+  maia-seed:
     type: python-package
-    source: .
-    artifacts: []
+    source: src/seed
+    artifacts:
+      - dist/*.whl
+      - dist/*.whl.sig
+      - dist/*.whl.sbom.json
+      - dist/*.whl.provenance.json
     contracts: []

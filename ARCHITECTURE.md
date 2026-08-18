@@ -1,10 +1,10 @@
 # Seed 架构
 
-> Seed 是 Maia 的版本化 Python 后端公共基础库。它没有独立业务路线；每个 Seed 子任务只作为触发它的后端消费 Story 的同切片依赖，不是任何工程或 Phase 启动迭代前的全局门槛。
+> Seed 是 Maia 的版本化 Python 后端公共基础库。它没有独立产品路线，但自主规划和执行由外部 Dependency Assignment 输入触发的 Maintenance Sprint。
 
 ## 1. 定位与禁止项
 
-Seed 提供无业务语义、可替换、可独立测试的横切能力。它不是独立服务，不拥有产品需求、业务数据或独立部署拓扑，也不由脱离消费者的 Sprint 建设。每项新增能力必须来源于一个消费工程 Story，并由该消费工程在同一交付链路完成集成验证。
+Seed 提供无业务语义、可替换、可独立测试的横切能力。它不是独立服务，不拥有产品需求、业务数据或独立部署拓扑。新增能力通常来源于后端消费工程写入本工程的 `dependency` Assignment；Seed 独立判断归属、映射本地 Story、规划 Sprint、实现测试并发布 Artifact，消费工程不直接修改 Seed Sprint。
 
 Seed 不提供 Tenant、Account、Task 等领域模型或业务状态，不访问业务服务，不拥有业务 Schema/Repository/Alembic migration，不管理 Helm release，也不封装 Kubernetes SDK。业务工程可依赖 Seed，Seed 不反向依赖业务工程；禁止为“未来可能复用”提前抽象。
 
@@ -59,23 +59,22 @@ Kernel 不依赖 Pydantic 以外框架；adapter 可依赖 contract，反向禁�
 
 公开 surface 维护 API stability matrix。弃用先告警一个 minor，破坏变化升 major；事件 schema 与 wheel 解耦，消费者 migration manifest 记录最早/最晚版本。Seed 自身不提供旧业务 alias；兼容窗口结束删除 adapter。
 
-## 4. 消费驱动的迭代与发布
+## 4. Assignment 驱动的迭代与发布
 
-Seed 不单独规划产品 Sprint。业务工程发现可复用的基础能力时，在自己的 Story/技术方案中声明 Seed 子任务、所需公开契约和版本范围；随后按以下顺序交付：
+Seed 不规划脱离真实需求的产品 Sprint。业务工程发现公共基础缺口时，从自己的 Story/Task 派生最小 `dependency` Assignment，写入 Seed `docs/assignments/inbox/`；输入只描述目标行为、无业务语义边界和消费者验收，不猜测版本、不规定 Seed 内部实现。Seed 在下一次主动规划时接受、调整、延期或拒绝，并自主映射本地 Story/Sprint：
 
 ```text
-consumer story
-  → Seed 最小契约/实现与纯单元测试
+consumer Story/Task → dependency Assignment (pending)
+  → Seed 主动规划并映射本地 Story/Sprint (planned)
+  → Seed 最小契约/实现与纯单元/adapter 测试
   → 一次构建并签名最终 version 的不可变 wheel/digest
-  → 同一 digest 进入 staged channel
-  → 消费工程按 version + SHA-256 完成 Test
-  → 同一 digest 原样提升到 release channel
-  → 消费工程更新锁文件并完成 Story
+  → 发布绑定 Assignment 的 dependency-package Delivery (delivered)
+  → 消费工程读取精确 version + SHA-256，更新锁文件并完成自身 Test
 ```
 
-维护、安全修复和构建工具升级也必须先在每个受影响后端创建具体 Maintenance/消费 Story，并在 `CONSUMERS.yaml` 登记独立依赖边；Seed 不允许直接立项或用自身 Story 代替消费者 Story。跨仓库变更遵循 add → migrate consumers → remove：先发布可兼容的新能力，再迁移所有登记消费者，最后在明确版本删除旧入口；不得长期双实现或用 path/Git 依赖代替正式制品。
+Assignment 是唯一跨工程需求输入，不再维护静态消费者映射表；原 24 条依赖边已按来源 Story 无损迁移为 12 个 Assignment，逐条映射见 [docs/assignments/MIGRATION.md](docs/assignments/MIGRATION.md)。迁移后发现的 `SEED-013/seed.secrets` 输入以独立 pending Assignment 补充，不回写历史迁移，也不把已有源码冒充为已接受/已交付。维护、安全修复和构建工具升级可以来自具体消费者 Assignment，也可以由 Seed 维护者创建本地 Maintenance Story；后者必须说明受影响的已知消费者与迁移验证。跨仓库变更遵循 add → migrate consumers → remove：先发布可兼容的新能力，再由各消费者通过独立 Assignment/Story 迁移，最后在明确版本删除旧入口；不得长期双实现或用 path/Git 依赖代替正式制品。
 
-每个 Seed 变更必须具备：触发它的消费 Story、最小公开 API、纯单元/adapter 测试、至少一个真实消费者证据、SemVer 与兼容矩阵、升级/回滚说明；破坏变更还必须登记全部消费者和旧入口删除版本。staged/release 是同一私有包索引中的权限/channel 状态，提升不得重建、重命名或改变 wheel、签名、SBOM/provenance；安装必须校验受信签名与锁文件 SHA-256，并禁止同名公共索引回退以防 dependency confusion。
+每个 Assignment 交付必须具备：有效且绑定输入摘要的 accepted Response、来源引用、本地 Story/Sprint、完整 Git object ID、最小公开 API、纯单元/adapter 测试、适用的消费者契约证据、SemVer 与兼容矩阵、升级/回滚说明，以及含 package/version/SHA-256/签名/SBOM/provenance 的 `dependency-package` Delivery。同一 Delivery ID 不得覆盖换包；Delivery 只有经项目配置的真实 verifier 校验签名、SBOM 和 Build Once、生成绑定 Delivery 与全部 Artifact 身份的受管 receipt 后才能成为 `delivered`。破坏变更还必须根据包索引与代码搜索登记已知消费者和旧入口删除版本。staged/release 是同一私有包索引中的权限/channel 状态，提升不得重建、重命名或改变 wheel；安装必须校验受信签名与锁文件 SHA-256，并禁止同名公共索引回退以防 dependency confusion。
 
 ## 5. 设计与发布
 
@@ -89,4 +88,4 @@ pytest、mypy strict、Ruff 强制；Seed 仓库提供契约夹具和最小 Fast
 
 每个 adapter 还需故障注入：Secret 不可用、OTel collector 不可用、SIGTERM 中途、HTTP timeout、重复事件、时钟偏差。日志/异常 snapshot 做 Secret canary 扫描。授权 kernel 由 Mud、Stem、Tea 及后续私有资源所有者在各自 CI 运行同一正反夹具；Seed 不连接这些服务，也不形成反向依赖。
 
-能力成熟度用于排交付依赖而非独立产品路线：S0 kernel/contracts → S1 按需 framework/middleware adapters → S2 reliable client → S3 consumer compatibility kit。任何阶段都只由真实消费者拉动，不建设“大而全基础平台”。
+能力成熟度用于 Seed 自主排期而非独立产品路线：S0 kernel/contracts → S1 按需 framework/middleware adapters → S2 reliable client → S3 consumer compatibility kit。每次 Sprint 必须追溯到已接受 Assignment 或明确的本地 Maintenance Story，不建设“大而全基础平台”。
