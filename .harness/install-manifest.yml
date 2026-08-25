@@ -218,7 +218,7 @@ assets:
     sha256: 98200706ae98849f94badfda6b183d0fe136ad122d75fa0b38c36b72847b17da
   .harness/runtime/src/mai_harness/runtime/application/task_evidence.py:
     policy: managed-overwrite
-    sha256: c6751eca3f489e5dc8ff421a8360baef86004a80be2a46be4096a8b60ed86b8d
+    sha256: 45e6d2160548516f63a0762eb77914b1ab8d00d00f98ca0bc7fab9ac8f376af3
   .harness/runtime/src/mai_harness/runtime/application/worktree_service.py:
     policy: managed-overwrite
     sha256: f42432b2a89daa0d0b0b61552bc26f51934388766fc5dc16d4ba983cba584eae
@@ -365,7 +365,7 @@ assets:
     sha256: 08aa35c848658e0f4d4378ddab744f15017b9c17c852b36fa482736b6c1c8c66
   .harness/runtime/src/mai_harness/runtime/commands/sprint_gate.py:
     policy: managed-overwrite
-    sha256: 97d61bb08ef1a25b7c8ed9a342c165ea0f67776ebe4733fab8152441c5653d07
+    sha256: 48304ef4969c4383e824611e0c78db5c0a2689c0218a2c13afd765c35228eaec
   .harness/runtime/src/mai_harness/runtime/commands/task_action.py:
     policy: managed-overwrite
     sha256: e6161ecb08a2a95d8b16a7c88d77d76692f84f0f923a90e14bf7c65d5fb263fe

@@ -36,7 +36,11 @@ def _git_sha(root: Path) -> str:
 
 def _sprint_structure_digest(path: Path) -> str:
     """Hash a Sprint plan while ignoring mutable task status cells."""
-    lines = path.read_text(encoding="utf-8").splitlines()
+    return _sprint_structure_digest_bytes(path.read_bytes())
+
+
+def _sprint_structure_digest_bytes(value: bytes) -> str:
+    lines = value.decode("utf-8").splitlines()
     status_index = -1
     normalized = []
     for line in lines:
@@ -53,6 +57,69 @@ def _sprint_structure_digest(path: Path) -> str:
             status_index = -1
         normalized.append(line)
     return _digest_bytes(("\n".join(normalized) + "\n").encode())
+
+
+def _pre_archive_close_plan(sprint_path: Path, task_id: str, task_type: str) -> bytes | None:
+    """Reverse the only mutations allowed while a close task archives its plan."""
+
+    if task_type not in {"sprint-close", "library-close"} or sprint_path.parent.name != "completed":
+        return None
+    active_path = sprint_path.parent.parent / "active" / sprint_path.name
+    if active_path.exists():
+        return None
+    lines = sprint_path.read_bytes().decode("utf-8").splitlines(keepends=True)
+    header_count = 0
+    for index, line in enumerate(lines):
+        ending = "\r\n" if line.endswith("\r\n") else "\n" if line.endswith("\n") else ""
+        body = line[: -len(ending)] if ending else line
+        if body not in {"- **状态**：completed", "- **状态**: completed"}:
+            continue
+        lines[index] = body.removesuffix("completed") + "active" + ending
+        header_count += 1
+    if header_count != 1:
+        return None
+    status_index = type_index = id_index = -1
+    changed = 0
+    for index, line in enumerate(lines):
+        ending = "\r\n" if line.endswith("\r\n") else "\n" if line.endswith("\n") else ""
+        body = line[: -len(ending)] if ending else line
+        raw_cells = body[1:-1].split("|") if body.startswith("|") and body.endswith("|") else []
+        cells = [cell.strip() for cell in raw_cells]
+        if cells and any(cell.lower() in {"status", "状态"} for cell in cells):
+            status_index = next(position for position, cell in enumerate(cells) if cell.lower() in {"status", "状态"})
+            type_index = next((position for position, cell in enumerate(cells) if cell.lower() in {"type", "类型"}), -1)
+            id_index = next((position for position, cell in enumerate(cells) if cell.lower() == "id"), -1)
+            continue
+        if min(status_index, type_index, id_index) < 0 or len(cells) <= max(status_index, type_index, id_index):
+            continue
+        if cells[id_index] != task_id:
+            continue
+        if cells[type_index] != task_type or raw_cells[status_index] != " done ":
+            return None
+        raw_cells[status_index] = " pending "
+        lines[index] = "|" + "|".join(raw_cells) + "|" + ending
+        changed += 1
+    if changed != 1:
+        return None
+    return "".join(lines).encode()
+
+
+def _matches_controlled_close_archive(
+    sprint_path: Path,
+    task_id: str,
+    task_type: str,
+    current: dict[str, str],
+    expected: dict[str, str],
+) -> bool:
+    source = _pre_archive_close_plan(sprint_path, task_id, task_type)
+    if source is None:
+        return False
+    archived_expected = {
+        **expected,
+        "sprint_sha256": _digest_bytes(source),
+        "sprint_structure_sha256": _sprint_structure_digest_bytes(source),
+    }
+    return current == archived_expected
 
 
 def _context(
@@ -182,7 +249,12 @@ def load_current_attempt(
     state = store.read_json(name, {})
     if not isinstance(state, dict) or state.get("schema_version") != 3:
         raise ValueError("任务执行轮次不存在；先运行 preflight gate")
-    if state.get("context") != _context(root, sprint_path, rules_path, task_id, task_type, task):
+    expected = _context(root, sprint_path, rules_path, task_id, task_type, task)
+    current = state.get("context")
+    if current != expected and not (
+        isinstance(current, dict)
+        and _matches_controlled_close_archive(sprint_path, task_id, task_type, current, expected)
+    ):
         raise ValueError("任务输入已变化；必须重新运行 preflight gate 创建新轮次")
     return state
 

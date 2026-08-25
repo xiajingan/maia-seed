@@ -38,6 +38,15 @@ from mai_harness.runtime.infrastructure.utils import load_yaml, try_run
 
 DONE = re.compile(r"^(done|完成|通过)$", re.I)
 ROLLBACK = re.compile(r"^(rollback|回退)$", re.I)
+COMPLETED_PLAN_TASK_TYPES = frozenset({"pr", "library-pr"})
+
+
+def allows_completed_plan(task_type: str, phase: str = "preflight") -> bool:
+    """Return whether a post-archive task may read a completed Sprint plan."""
+
+    return task_type in COMPLETED_PLAN_TASK_TYPES or (
+        phase == "review" and task_type in {"sprint-close", "library-close"}
+    )
 
 
 @dataclass
@@ -719,7 +728,7 @@ def main() -> int:
             root,
             args.sprint_plan_file.resolve(),
             rules,
-            allow_completed=args.task_type == "pr",
+            allow_completed=allows_completed_plan(args.task_type, args.phase),
         )
     )
     result.blocked.extend(validate_sprint_activation(root, args.sprint_plan_file.resolve()))
