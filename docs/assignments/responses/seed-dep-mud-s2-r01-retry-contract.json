@@ -1,0 +1,15 @@
+{
+  "assignment_digest": "sha256:3e85907c98f7188fbb7b23b6d3c561b6412c634d9ab8bfa3903e1b00e30300ea",
+  "assignment_id": "seed-dep-mud-s2-r01-retry-contract",
+  "assignment_type": "dependency",
+  "decision": "accepted",
+  "local_sprint": "sprint-1-retry-contract",
+  "local_story": "SEED-009",
+  "manifest_digest": "sha256:b944d6600b9d1af3cc47ebc39f1a8ade64b5066515563f57118fe8f8bbd587a9",
+  "project_id": "maia-seed",
+  "reason": "属于 Seed 无业务语义的公共错误与重试结果契约；范围严格限制为失败关闭分类和可验证 opaque reference，不引入 Mud/WeCom 语义",
+  "responded_at": "2026-08-25T10:32:03.157045+00:00",
+  "schema_version": 2,
+  "source_project_id": "maia-mud",
+  "source_reference": "S2-R01"
+}

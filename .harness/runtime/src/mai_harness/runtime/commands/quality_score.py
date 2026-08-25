@@ -227,10 +227,16 @@ def coverage_percent(directory: Path) -> float:
     return 0.0
 
 
+def dimension_applies(dimensions: dict[str, Any], key: str, project_type: str) -> bool:
+    applies_to = dimensions[key].get("applies_to")
+    return applies_to is None or project_type in applies_to
+
+
 def calculate(sprint: str, level: str, threshold: int, root: Path, coverage_dir: Path) -> Score:
     harness = load_harness_config()
     paths = HarnessPaths.detect(project=root)
     dimensions = harness["quality"]["dimensions"]
+    project_type = harness["project"]["type"]
     weights = {value["label"]: value["weight"] for value in dimensions.values()}
     score = Score(sprint, level, threshold, weights)
     commands = harness["commands"]
@@ -264,6 +270,7 @@ def calculate(sprint: str, level: str, threshold: int, root: Path, coverage_dir:
         unit,
         f"- Commands: {', '.join(unit_names)}\n- 测试通过: {unit_ok}\n- 覆盖率: {coverage:.1f}%",
     )
+    integration_applicable = dimension_applies(dimensions, "integration", project_type)
     integration_files = [
         path
         for path in root.rglob("*")
@@ -271,37 +278,55 @@ def calculate(sprint: str, level: str, threshold: int, root: Path, coverage_dir:
         and re.search(r"(?:integration|\.int\.)[^/]*\.(?:test|spec)\.", path.name)
         and not {"node_modules", ".git", "coverage"}.intersection(path.parts)
     ]
-    integration_command = resolve_command(commands.get("integration", []))
+    integration_command = resolve_command(commands.get("integration", [])) if integration_applicable else []
     integration_ok = bool(integration_command and try_run(integration_command, cwd=root).ok)
     integration = (
         weights["集成测试"]
-        if integration_ok
-        else round(weights["集成测试"] * 0.5)
-        if level == "L1" and not integration_files and not integration_command
-        else 0
+        if not integration_applicable
+        else (
+            weights["集成测试"]
+            if integration_ok
+            else round(weights["集成测试"] * 0.5)
+            if level == "L1" and not integration_files and not integration_command
+            else 0
+        )
     )
-    if level != "L1" and not integration_files and not integration_command:
+    if integration_applicable and level != "L1" and not integration_files and not integration_command:
         score.hard_failures.append(f"{level} 要求集成测试，但未找到入口")
-    score.add("集成测试", integration, f"- 测试文件: {len(integration_files)}\n- 通过: {integration_ok}")
-    health = try_run(
-        [
-            *harness_command("verify", "health"),
-            "--no-start",
-            "--report-dir",
-            str(root / ".harness/verify-reports"),
-        ],
-        cwd=root,
+    score.add(
+        "集成测试",
+        integration,
+        f"- 适用: {integration_applicable}\n- 测试文件: {len(integration_files)}\n- 通过: {integration_ok}",
     )
-    health_score = weights["服务健康"] if health and health.ok else 0
-    if not health_score:
+    health_applicable = dimension_applies(dimensions, "health", project_type)
+    health = (
+        try_run(
+            [
+                *harness_command("verify", "health"),
+                "--no-start",
+                "--report-dir",
+                str(root / ".harness/verify-reports"),
+            ],
+            cwd=root,
+        )
+        if health_applicable
+        else None
+    )
+    health_score = weights["服务健康"] if not health_applicable or (health and health.ok) else 0
+    if health_applicable and not health_score:
         score.hard_failures.append("服务健康检查未通过")
-    score.add("服务健康", health_score, f"- 检查结果: {bool(health and health.ok)}")
+    score.add(
+        "服务健康",
+        health_score,
+        f"- 适用: {health_applicable}\n- 检查结果: {bool(health and health.ok)}",
+    )
     cases = load_test_cases(paths.test_cases)
     current = [case for case in cases if is_current_case(case, sprint)]
     e2e_cases, _ = split_cases_by_runner(current)
     fallback = sorted(paths.e2e.rglob("*.spec.*")) if paths.e2e.exists() else []
     configured_e2e = resolve_command(commands.get("e2e", []))
-    if harness.get("gates", {}).get("require_e2e") is False:
+    e2e_applicable = dimension_applies(dimensions, "e2e", project_type)
+    if not e2e_applicable or harness.get("gates", {}).get("require_e2e") is False:
         e2e_ok = True
     elif configured_e2e:
         e2e_ok = try_run(configured_e2e, cwd=root).ok
@@ -319,8 +344,12 @@ def calculate(sprint: str, level: str, threshold: int, root: Path, coverage_dir:
         e2e_ok = try_run(build_playwright_command(), cwd=root).ok
     else:
         e2e_ok = False
-    score.add("E2E 测试", weights["E2E 测试"] if e2e_ok else 0, f"- 当前用例: {len(current)}\n- 结果: {e2e_ok}")
-    ui_applicable = harness["project"]["type"] in dimensions["ui_parity"].get("applies_to", [])
+    score.add(
+        "E2E 测试",
+        weights["E2E 测试"] if e2e_ok else 0,
+        f"- 适用: {e2e_applicable}\n- 当前用例: {len(current)}\n- 结果: {e2e_ok}",
+    )
+    ui_applicable = dimension_applies(dimensions, "ui_parity", project_type)
     ui_commands = [
         harness_command("check-prototype-coverage", "--sprint", sprint),
         harness_command("check-contract-strength", "--sprint", sprint),
@@ -352,12 +381,15 @@ def calculate(sprint: str, level: str, threshold: int, root: Path, coverage_dir:
         weights["UI 还原度"] if ui_ok else 0,
         f"- 原型覆盖: {ui_gate_results[0]}\n- 契约强度: {ui_gate_results[1]}\n- prototype-parity: {ui_ok}",
     )
+    performance_applicable = dimension_applies(dimensions, "performance", project_type)
     performance = (coverage_dir / "lighthouse.json").exists() or (coverage_dir / "k6-results.json").exists()
     perf_max = weights["性能基线"]
-    perf_score = perf_max if performance else 0 if level == "L3" else round(perf_max * 0.5)
-    if level == "L3" and not performance:
+    perf_score = (
+        perf_max if not performance_applicable or performance else 0 if level == "L3" else round(perf_max * 0.5)
+    )
+    if performance_applicable and level == "L3" and not performance:
         score.hard_failures.append("L3 要求性能基线")
-    score.add("性能基线", perf_score, f"- 性能产物: {performance}")
+    score.add("性能基线", perf_score, f"- 适用: {performance_applicable}\n- 性能产物: {performance}")
     return score
 
 
