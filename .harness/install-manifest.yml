@@ -53,7 +53,7 @@ assets:
     sha256: 86896217244430556b0112f8ff80a38bfd0f70cdd4c174400ad564f9dd094441
   .github/workflows/quality.yml:
     policy: managed-overwrite
-    sha256: 038ad2293ff0ab5902c37627d05fc65214cb621d3d71564a6d41a44b06cbd4a6
+    sha256: 0d22405c7c2514b5bb08143575147ae21458cd2516a3323e4a99d323707e6493
   .gitlab-ci.yml:
     policy: managed-overwrite
     sha256: 8d51a957f5c2e03785b920fa7b234459deaa97d613a8106d20571abb924ca661
@@ -68,7 +68,7 @@ assets:
     sha256: 95172bd5b78283234f221b53a7d1e7dff381fccda159cfd245792a71e4436657
   .gitlab/ci/quality.yml:
     policy: managed-overwrite
-    sha256: 8f9c865cee4fc161e07530204333394fd87ede1683ed7a8d5eab4a23fa5f35bd
+    sha256: 380859c6788ea5a026805476a67645a8baf4d2a607f6b20df9f04da09b1543db
   .gitlab/ci/security.yml:
     policy: managed-overwrite
     sha256: ababecac6ed7ba4fbf145f578450b731ca7cb8fcec7e909c00c51fade10fd47d
