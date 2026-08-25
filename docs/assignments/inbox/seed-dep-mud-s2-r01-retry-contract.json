@@ -1,0 +1,24 @@
+{
+  "acceptance": [
+    "只有通过校验的不透明重试引用才能产生可重试结果；空值、布尔值、错误类型和不可验证引用均不得被包装为可重试失败",
+    "公共契约能区分可重试依赖失败、不可重试依赖失败与调用方违反契约，且不包含企业微信、Mud 领域状态或供应商错误码语义",
+    "契约可与 seed.errors 的稳定机器错误码和安全错误 envelope 组合，不在 Mud 内复制公共错误分类或序列化实现",
+    "Seed 单元测试覆盖正反例；Mud 提供消费者契约测试，复现 S2-R01 中非法 issuer 返回值不得生成可重试 provider_error 或业务 finished 事件",
+    "交付通过 dependency-package Delivery 返回精确 wheel version 与 SHA-256；Mud 锁定该版本后再执行真实消费验证"
+  ],
+  "assignment_id": "seed-dep-mud-s2-r01-retry-contract",
+  "assignment_type": "dependency",
+  "dispatched_at": "2026-08-25T06:08:58.493952+00:00",
+  "idempotency_key": "maia-mud-s2-r01-retry-contract-v1",
+  "manifest_digest": "sha256:3e85907c98f7188fbb7b23b6d3c561b6412c634d9ab8bfa3903e1b00e30300ea",
+  "outcome": "为 Mud 的外部依赖调用提供无业务语义、类型安全且失败关闭的重试结果契约，并与 Seed 既有公共错误能力组合使用",
+  "priority": "blocking-s2-r01",
+  "related_assignments": [
+    "seed-dep-mud-p0-003",
+    "seed-dep-mud-p0-020"
+  ],
+  "schema_version": 2,
+  "source_project_id": "maia-mud",
+  "source_reference": "S2-R01",
+  "target_project_id": "maia-seed"
+}
