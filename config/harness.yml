@@ -2,7 +2,7 @@ version: 2
 project:
   id: maia-seed
   mode: managed
-  stack: python-backend
+  type: library
   deployment_owner: control
 agent_runtime:
   primary: codex
@@ -50,6 +50,7 @@ commands:
   integration: [uv, run, --frozen, python, -m, pytest, -q, tests/integration, -m, integration, --no-cov]
   dependency_audit: [uv, run, --frozen, pip-audit, --skip-editable]
   build: [uv, build]
+  package_build: [uv, build]
   frontend_lint: []
   frontend_typecheck: []
   frontend_unit: []
@@ -63,6 +64,7 @@ command_conditions:
   integration: {file_exists: tests/integration/test_fastapi_context.py}
   dependency_audit: {file_exists: uv.lock}
   build: {file_exists: pyproject.toml}
+  package_build: {file_exists: pyproject.toml}
 command_groups:
   static: [format_check, lint, typecheck, architecture]
   precommit: [format_check, lint, typecheck, architecture, unit, build]
