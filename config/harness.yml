@@ -82,3 +82,5 @@ management:
   assignment_inbox: docs/assignments/inbox
   assignment_responses: docs/assignments/responses
   deliveries_dir: docs/deliveries
+  supply_chain_verification_commands:
+  - [uv, run, --frozen, python, tools/verify_delivery_supply_chain.py, "{manifest}"]

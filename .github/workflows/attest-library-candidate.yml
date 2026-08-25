@@ -1,0 +1,100 @@
+name: Attest library candidate
+
+on:
+  push:
+    branches:
+      - "library/**"
+    paths:
+      - ".github/workflows/attest-library-candidate.yml"
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve immutable release candidate
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          tag="v${version}"
+          asset="maia_seed-${version}-py3-none-any.whl"
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir candidate
+          digest=$(sha256sum "candidate/$asset" | cut -d ' ' -f 1)
+          release_digest=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$asset\") | .digest")
+          test "$release_digest" = "sha256:$digest"
+          echo "artifact=candidate/$asset" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Generate SPDX SBOM
+        env:
+          ARTIFACT: ${{ steps.candidate.outputs.artifact }}
+          VERSION: ${{ steps.candidate.outputs.version }}
+          DIGEST: ${{ steps.candidate.outputs.digest }}
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import zipfile
+
+          artifact = os.environ["ARTIFACT"]
+          files = []
+          with zipfile.ZipFile(artifact) as wheel:
+              for name in sorted(wheel.namelist()):
+                  if name.endswith("/"):
+                      continue
+                  files.append({
+                      "SPDXID": "SPDXRef-File-" + hashlib.sha256(name.encode()).hexdigest()[:16],
+                      "fileName": name,
+                      "checksums": [{"algorithm": "SHA256", "checksumValue": hashlib.sha256(wheel.read(name)).hexdigest()}],
+                  })
+          document = {
+              "spdxVersion": "SPDX-2.3",
+              "dataLicense": "CC0-1.0",
+              "SPDXID": "SPDXRef-DOCUMENT",
+              "name": f"maia-seed-{os.environ['VERSION']}",
+              "documentNamespace": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/sbom/{os.environ['DIGEST']}",
+              "creationInfo": {"created": "2026-08-25T00:00:00Z", "creators": ["Tool: maia-seed-wheel-sbom/1"]},
+              "packages": [{
+                  "name": "maia-seed",
+                  "SPDXID": "SPDXRef-Package-maia-seed",
+                  "versionInfo": os.environ["VERSION"],
+                  "downloadLocation": "NOASSERTION",
+                  "filesAnalyzed": True,
+                  "checksums": [{"algorithm": "SHA256", "checksumValue": os.environ["DIGEST"]}],
+                  "licenseConcluded": "NOASSERTION",
+                  "licenseDeclared": "NOASSERTION",
+                  "copyrightText": "NOASSERTION",
+              }],
+              "files": files,
+              "relationships": [
+                  {"spdxElementId": "SPDXRef-DOCUMENT", "relationshipType": "DESCRIBES", "relatedSpdxElement": "SPDXRef-Package-maia-seed"},
+                  *[
+                      {"spdxElementId": "SPDXRef-Package-maia-seed", "relationshipType": "CONTAINS", "relatedSpdxElement": item["SPDXID"]}
+                      for item in files
+                  ],
+              ],
+          }
+          with open("candidate/maia-seed.spdx.json", "w", encoding="utf-8") as output:
+              json.dump(document, output, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+          PY
+
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.candidate.outputs.artifact }}
+
+      - name: Attest SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.candidate.outputs.artifact }}
+          sbom-path: candidate/maia-seed.spdx.json
