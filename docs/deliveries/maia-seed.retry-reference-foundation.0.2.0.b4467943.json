@@ -1,0 +1,35 @@
+{
+  "artifacts": [
+    {
+      "build_once_evidence": "build://maia-seed/library-packages/sprint-2-retry-reference-foundation/sha256:b446794310ff1b94cb89735003454b72f83fc03cc85e9459ae4618db51f7fae5/sha256:cfa1ce559858c53759343e33536734cc7c7efee519e7be78e6a7917317c37355",
+      "built_at": "2026-08-26T04:50:10.520296+00:00",
+      "package": "maia-seed",
+      "quality_evidence_sha256": "sha256:f9ac5c50e8465f890805f503292bb05067e6b654a21114e491c2dbd5c316debb",
+      "ref": "https://github.com/xiajingan/maia-seed/releases/download/v0.2.0/maia_seed-0.2.0-py3-none-any.whl#sha256=b446794310ff1b94cb89735003454b72f83fc03cc85e9459ae4618db51f7fae5",
+      "rollback_version": "sha256:b1e5af73b9571ee730212f51f76d858e1944ff755ceb1531c63cfc5b9546303c",
+      "sbom": "sbom://github.com/xiajingan/maia-seed/actions/runs/32936801716/sha256:b446794310ff1b94cb89735003454b72f83fc03cc85e9459ae4618db51f7fae5/sha256:53ad15a34aaf34ca45cee8df8a2817aaaa5d92c3fc58c999f8b9b10f66c06a0a",
+      "sha256": "sha256:b446794310ff1b94cb89735003454b72f83fc03cc85e9459ae4618db51f7fae5",
+      "signature": "signature://github.com/xiajingan/maia-seed/actions/runs/32936801716/sha256:b446794310ff1b94cb89735003454b72f83fc03cc85e9459ae4618db51f7fae5/sha256:86af4cfdef13c0919264ccb9569e8c449015c902e171afcc1cc1cc71323584c1",
+      "type": "dependency-package",
+      "version": "0.2.0"
+    }
+  ],
+  "delivery_id": "maia-seed.retry-reference-foundation.0.2.0.b4467943",
+  "manifest_digest": "sha256:0b18ab27e5417c8f6d08c27dcf5c40411e9d1acce24641fe4589bc9fe7b0c16b",
+  "project_id": "maia-seed",
+  "published_at": "2026-08-26T06:09:36.817471+00:00",
+  "quality": {
+    "status": "passed"
+  },
+  "satisfies": {
+    "assignments": [],
+    "dependency_sessions": [
+      {
+        "request_digest": "sha256:6f9cc9d25900fd7a71f9218cd82c6f7388435f131177830c41eb6086dab07874",
+        "session_id": "seed-dep-mud-s2-r01-retry-reference-foundation"
+      }
+    ]
+  },
+  "schema_version": 1,
+  "source_commit": "dddd236bc58ce56681699aa21cc5146eca6df761"
+}
