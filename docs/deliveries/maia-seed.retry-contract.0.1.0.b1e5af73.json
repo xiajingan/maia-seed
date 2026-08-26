@@ -1,0 +1,39 @@
+{
+  "artifacts": [
+    {
+      "build_once_evidence": "build://maia-seed/library-packages/sprint-1-retry-contract/sha256:b1e5af73b9571ee730212f51f76d858e1944ff755ceb1531c63cfc5b9546303c/sha256:2fe05615dc5dc4780410c4cba11a387de72657746cdadc2395521ab9e70a4066",
+      "built_at": "2026-08-25T13:10:29.258662+00:00",
+      "package": "maia-seed",
+      "ref": "https://github.com/xiajingan/maia-seed/releases/download/v0.1.0/maia_seed-0.1.0-py3-none-any.whl#sha256=b1e5af73b9571ee730212f51f76d858e1944ff755ceb1531c63cfc5b9546303c",
+      "rollback_version": "sha256:d40dd2852bc4f4d802e80d1690df7648c0658c8c1b1a40cedcac2775406bafe1",
+      "sbom": "sbom://github.com/xiajingan/maia-seed/actions/runs/32858342952/sha256:b1e5af73b9571ee730212f51f76d858e1944ff755ceb1531c63cfc5b9546303c/sha256:25053b2a4aa95431657e9e57f31900c5700e48b19ee4b948a84027ff44868597",
+      "sha256": "sha256:b1e5af73b9571ee730212f51f76d858e1944ff755ceb1531c63cfc5b9546303c",
+      "signature": "signature://github.com/xiajingan/maia-seed/actions/runs/32858342952/sha256:b1e5af73b9571ee730212f51f76d858e1944ff755ceb1531c63cfc5b9546303c/sha256:29f233565e531da6c67d3b668c6f24f66aaf9c3dfbb2960f6d19520be927e2f0",
+      "type": "dependency-package",
+      "version": "0.1.0"
+    }
+  ],
+  "delivery_id": "maia-seed.retry-contract.0.1.0.b1e5af73",
+  "manifest_digest": "sha256:e175941ef219e908375e4fdcec997c1d2aa23914f0ce252fcf22c81ca64553e4",
+  "project_id": "maia-seed",
+  "published_at": "2026-08-25T14:26:14.243807+00:00",
+  "quality": {
+    "status": "passed"
+  },
+  "satisfies": {
+    "assignments": [
+      {
+        "assignment_digest": "sha256:3e85907c98f7188fbb7b23b6d3c561b6412c634d9ab8bfa3903e1b00e30300ea",
+        "assignment_id": "seed-dep-mud-s2-r01-retry-contract"
+      }
+    ],
+    "dependency_sessions": [
+      {
+        "request_digest": "sha256:d62c78dac0210a60e11e4559c706749eb5724aa2828aaf59cf14b0355743f32d",
+        "session_id": "seed-dep-mud-s2-r01-retry-contract"
+      }
+    ]
+  },
+  "schema_version": 1,
+  "source_commit": "82d0d8e2177b5dc2969bf866ccf85e74c14cc148"
+}

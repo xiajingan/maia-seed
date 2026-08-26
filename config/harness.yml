@@ -13,6 +13,8 @@ ai_platform:
 - codex
 - agy
 - copilot
+task_execution:
+  max_review_retries: 5
 automation:
   enabled: true
   default_mode: report-only
@@ -46,7 +48,7 @@ commands:
   lint: [uv, run, --frozen, python, -m, ruff, check, .]
   typecheck: [uv, run, --frozen, python, -m, mypy, src/seed]
   architecture: [uv, run, --frozen, python, -m, pytest, -q, tests/architecture, --no-cov]
-  unit: [uv, run, --frozen, python, -m, pytest, -q]
+  unit: [uv, run, --frozen, python, -m, pytest, -q, --cov-report=json:coverage/coverage.json]
   integration: [uv, run, --frozen, python, -m, pytest, -q, tests/integration, -m, integration, --no-cov]
   dependency_audit: [uv, run, --frozen, pip-audit, --skip-editable]
   build: [uv, build]
@@ -80,3 +82,5 @@ management:
   assignment_inbox: docs/assignments/inbox
   assignment_responses: docs/assignments/responses
   deliveries_dir: docs/deliveries
+  supply_chain_verification_commands:
+  - [uv, run, --frozen, python, tools/verify_delivery_supply_chain.py, "{manifest}"]

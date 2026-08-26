@@ -1,0 +1,54 @@
+{
+  "sprint": "sprint-1-retry-contract",
+  "level": "L1",
+  "generated_at": "2026-08-25T21:16:11+08:00",
+  "threshold": 95,
+  "total": 100,
+  "max": 100,
+  "passed": true,
+  "hard_failures": [],
+  "details": [
+    {
+      "label": "静态检查",
+      "score": 15,
+      "max": 15,
+      "weight": "15%"
+    },
+    {
+      "label": "单元测试 + 覆盖率",
+      "score": 20,
+      "max": 20,
+      "weight": "20%"
+    },
+    {
+      "label": "集成测试",
+      "score": 10,
+      "max": 10,
+      "weight": "10%"
+    },
+    {
+      "label": "服务健康",
+      "score": 5,
+      "max": 5,
+      "weight": "5%"
+    },
+    {
+      "label": "E2E 测试",
+      "score": 15,
+      "max": 15,
+      "weight": "15%"
+    },
+    {
+      "label": "UI 还原度",
+      "score": 25,
+      "max": 25,
+      "weight": "25%"
+    },
+    {
+      "label": "性能基线",
+      "score": 10,
+      "max": 10,
+      "weight": "10%"
+    }
+  ]
+}
