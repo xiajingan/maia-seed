@@ -13,7 +13,6 @@ from urllib.parse import urldefrag
 
 REPOSITORY = "xiajingan/maia-seed"
 SIGNER_WORKFLOW = "github.com/xiajingan/maia-seed/.github/workflows/attest-library-candidate.yml"
-SOURCE_REF = "refs/heads/library/1-retry-contract"
 PROVENANCE_PREDICATE = "https://slsa.dev/provenance/v1"
 SBOM_PREDICATE = "https://spdx.dev/Document/v2.3"
 
@@ -39,7 +38,7 @@ def run_gh(*args: str, cwd: Path | None = None) -> str:
     return result.stdout
 
 
-def verify_attestation(artifact: Path, predicate: str, expected_bundle_digest: str) -> None:
+def verify_attestation(artifact: Path, predicate: str, expected_bundle_digest: str, source_ref: str) -> None:
     common = (
         str(artifact),
         "--repo",
@@ -47,7 +46,7 @@ def verify_attestation(artifact: Path, predicate: str, expected_bundle_digest: s
         "--signer-workflow",
         SIGNER_WORKFLOW,
         "--source-ref",
-        SOURCE_REF,
+        source_ref,
         "--predicate-type",
         predicate,
     )
@@ -70,6 +69,18 @@ def load_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"JSON object required: {path}")
     return value
+
+
+def build_state_identity(value: str) -> tuple[str, str, str]:
+    prefix = "build://maia-seed/library-packages/"
+    if not value.startswith(prefix):
+        raise ValueError("invalid build evidence URI")
+    parts = value[len(prefix) :].split("/")
+    if len(parts) != 3 or not parts[0].startswith("sprint-"):
+        raise ValueError("invalid build evidence path")
+    if not parts[1].startswith("sha256:") or not parts[2].startswith("sha256:"):
+        raise ValueError("invalid build evidence identity")
+    return parts[0], parts[1], parts[2]
 
 
 def main() -> int:
@@ -95,12 +106,12 @@ def main() -> int:
 
     signature_subject, signature_bundle = evidence_digests(str(item.get("signature", "")), "signature")
     sbom_subject, sbom_bundle = evidence_digests(str(item.get("sbom", "")), "sbom")
-    build_subject, build_state_digest = evidence_digests(str(item.get("build_once_evidence", "")), "build")
+    sprint, build_subject, build_state_digest = build_state_identity(str(item.get("build_once_evidence", "")))
     if {signature_subject, sbom_subject, build_subject} != {expected}:
         raise ValueError("supply-chain evidence is not bound to the artifact")
 
     project = Path.cwd().resolve()
-    package_state_path = project / ".harness/state/library-packages/sprint-1-retry-contract.json"
+    package_state_path = project / ".harness/state/library-packages" / f"{sprint}.json"
     package_state = load_json(package_state_path)
     if (
         package_state.get("package") != item.get("package")
@@ -110,6 +121,17 @@ def main() -> int:
         or "sha256:" + sha256_bytes(package_state_path.read_bytes()) != build_state_digest
     ):
         raise ValueError("Build Once state does not match Delivery")
+    quality_digest = item.get("quality_evidence_sha256")
+    if quality_digest is not None:
+        quality_path = Path(str(package_state.get("quality_evidence", "")))
+        if (
+            package_state.get("quality_evidence_sha256") != quality_digest
+            or not quality_path.is_file()
+            or "sha256:" + sha256_bytes(quality_path.read_bytes()) != quality_digest
+        ):
+            raise ValueError("Library quality evidence does not match Delivery")
+
+    source_ref = "refs/heads/library/" + sprint.removeprefix("sprint-")
 
     with tempfile.TemporaryDirectory(prefix="maia-seed-release-") as directory:
         downloaded = Path(directory) / Path(source_url).name
@@ -117,8 +139,8 @@ def main() -> int:
             downloaded.write_bytes(response.read())
         if "sha256:" + sha256_bytes(downloaded.read_bytes()) != expected:
             raise ValueError("downloaded Release artifact digest mismatch")
-        verify_attestation(downloaded, PROVENANCE_PREDICATE, signature_bundle)
-        verify_attestation(downloaded, SBOM_PREDICATE, sbom_bundle)
+        verify_attestation(downloaded, PROVENANCE_PREDICATE, signature_bundle, source_ref)
+        verify_attestation(downloaded, SBOM_PREDICATE, sbom_bundle, source_ref)
 
     identities = [{"type": str(item["type"]), "ref": str(item["ref"]), "digest": expected}]
     print(
