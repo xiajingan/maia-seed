@@ -393,7 +393,7 @@ def calculate(sprint: str, level: str, threshold: int, root: Path, coverage_dir:
     return score
 
 
-def write_report(score: Score, directory: Path) -> tuple[Path, Path]:
+def write_report(score: Score, directory: Path, *, source_commit: str | None = None) -> tuple[Path, Path]:
     directory.mkdir(parents=True, exist_ok=True)
     base = quality_report_basename(score.sprint)
     markdown = directory / f"{base}.md"
@@ -409,6 +409,7 @@ def write_report(score: Score, directory: Path) -> tuple[Path, Path]:
                 f"- **阈值**: {score.threshold} 分",
                 f"- **结果**: {'✅ 达标' if score.passed else '❌ 不达标'} ({score.total}/100)",
                 f"- **硬门禁失败**: {'；'.join(score.hard_failures) if score.hard_failures else '无'}",
+                f"- **源码提交**: {source_commit or '未绑定'}",
                 "",
                 "## 评分明细",
                 "",
@@ -435,6 +436,7 @@ def write_report(score: Score, directory: Path) -> tuple[Path, Path]:
         "max": 100,
         "passed": score.passed,
         "hard_failures": score.hard_failures,
+        "source_commit": source_commit,
         "details": [
             {"label": label, "score": value, "max": maximum, "weight": f"{maximum}%"}
             for label, value, maximum in score.details
@@ -442,6 +444,32 @@ def write_report(score: Score, directory: Path) -> tuple[Path, Path]:
     }
     summary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return markdown, summary
+
+
+def library_source_commit(root: Path, sprint: str, report_dir: Path, coverage_dir: Path) -> str:
+    commit = try_run(["git", "rev-parse", "HEAD"], cwd=root)
+    if not commit.ok or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", commit.stdout.strip()):
+        raise ValueError("无法解析 Library quality source commit")
+    status = try_run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=root)
+    if not status.ok:
+        raise ValueError("无法检查 Library quality worktree 状态")
+    allowed_paths = {
+        f"docs/exec-plans/active/{normalize_sprint_id(sprint)}.md",
+    }
+    allowed_prefixes = (
+        ".harness/",
+        "dist/",
+        report_dir.resolve().relative_to(root.resolve()).as_posix().rstrip("/") + "/",
+        coverage_dir.resolve().relative_to(root.resolve()).as_posix().rstrip("/") + "/",
+    )
+    dirty = []
+    for line in status.stdout.splitlines():
+        path = line[3:].split(" -> ")[-1]
+        if path not in allowed_paths and not path.startswith(allowed_prefixes):
+            dirty.append(path)
+    if dirty:
+        raise ValueError("Library quality 要求源码已提交，worktree 仍有变更: " + ", ".join(dirty))
+    return commit.stdout.strip()
 
 
 def main() -> int:
@@ -459,7 +487,10 @@ def main() -> int:
     threshold = (
         args.threshold if args.threshold is not None else int(config.get("gates", {}).get("quality_threshold", 95))
     )
+    source_commit = None
     try:
+        if config["project"]["type"] == "library":
+            source_commit = library_source_commit(Path.cwd(), sprint, args.report_dir, args.coverage_dir)
         score = calculate(sprint, args.level, threshold, Path.cwd(), args.coverage_dir)
     except ValueError as exc:
         dimensions = config["quality"]["dimensions"]
@@ -467,7 +498,7 @@ def main() -> int:
         score = Score(sprint, args.level, threshold, weights, hard_failures=[str(exc)])
         for label in weights:
             score.add(label, 0, f"- Hard failure: {exc}" if label == "静态检查" else "- 未执行")
-    report, _ = write_report(score, args.report_dir)
+    report, _ = write_report(score, args.report_dir, source_commit=source_commit)
     print(f"总分: {score.total}/100 — {'达标' if score.passed else '不达标'}；报告: {report}")
     return 0 if score.passed else 1
 

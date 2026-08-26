@@ -307,7 +307,10 @@ def evaluate(
             if not applicable:
                 continue
             present = [name for name in applicable if name in statuses]
-            if not present and not (isinstance(earlier_stage, dict) and earlier_stage.get("optional") is True):
+            optional = isinstance(earlier_stage, dict) and earlier_stage.get("optional") is True
+            if not present and optional:
+                continue
+            if not present:
                 result.blocked.append(f"前序阶段未列入 Sprint: {', '.join(applicable)}")
                 continue
             outcome = task.get("upstream_outcome") or {}
