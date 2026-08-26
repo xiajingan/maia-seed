@@ -379,7 +379,7 @@ wheels = [
 
 [[package]]
 name = "maia-seed"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
@@ -401,6 +401,7 @@ security = [
 [package.dev-dependencies]
 dev = [
     { name = "asyncmy" },
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "mypy" },
@@ -427,6 +428,7 @@ provides-extras = ["fastapi", "security", "oceanbase"]
 [package.metadata.requires-dev]
 dev = [
     { name = "asyncmy", specifier = ">=0.2.10,<1" },
+    { name = "cryptography", specifier = ">=44,<51" },
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "httpx", specifier = ">=0.28,<1" },
     { name = "mypy", specifier = ">=1.14,<2" },

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "maia-seed"
-version = "0.1.0"
+version = "0.2.0"
 description = "Maia shared backend runtime foundations"
 requires-python = ">=3.12,<3.13"
 dependencies = ["pydantic>=2.10,<3", "PyYAML>=6,<7"]
@@ -17,6 +17,7 @@ oceanbase = ["asyncmy>=0.2.10,<1", "sqlalchemy[asyncio]>=2.0.36,<3"]
 [dependency-groups]
 dev = [
   "asyncmy>=0.2.10,<1",
+  "cryptography>=44,<51",
   "fastapi>=0.115,<1",
   "httpx>=0.28,<1",
   "mypy>=1.14,<2",

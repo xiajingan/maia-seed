@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Literal, NoReturn, SupportsIndex, TypeGuard, final
+from typing import Literal, NoReturn, SupportsIndex, final
 
 from . import errors as _errors
+from ._errors_seal import is_verified_details_reference
 
 __all__ = [
     "DependencyFailure",
@@ -97,7 +98,7 @@ def classify_dependency_failure(
     if type(kind) is not DependencyFailureKind:
         raise RetryContractError("invalid_failure_kind")
     if kind is DependencyFailureKind.DEPENDENCY_RETRYABLE:
-        if not _is_verified_reference(reference):
+        if not is_verified_details_reference(reference):
             raise RetryContractError("seal_fault")
     elif reference is not None:
         raise RetryContractError("failure_shape_fault")
@@ -142,15 +143,6 @@ def dependency_failure_to_error(
     )
 
 
-def _is_verified_reference(value: object) -> TypeGuard[_errors.VerifiedDetailsReference]:
-    if type(value) is not _errors.VerifiedDetailsReference:
-        return False
-    try:
-        return type(value.value) is str and bool(value.value) and bool(value.value.strip())
-    except AttributeError:
-        return False
-
-
 def _validate_failure(failure: object) -> None:
     try:
         if (
@@ -162,7 +154,7 @@ def _validate_failure(failure: object) -> None:
         if type(failure._kind) is not DependencyFailureKind:
             raise RetryContractError("seal_fault")
         if failure._kind is DependencyFailureKind.DEPENDENCY_RETRYABLE:
-            if type(failure._reference) is not _errors.VerifiedDetailsReference:
+            if not is_verified_details_reference(failure._reference):
                 raise RetryContractError("seal_fault")
         elif failure._reference is not None:
             raise RetryContractError("seal_fault")
