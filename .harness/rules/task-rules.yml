@@ -348,6 +348,7 @@ tasks:
     acceptance:
       - "项目 command_groups.precommit 通过"
       - "覆盖率达到项目阈值"
+      - "质量报告绑定 clean、完整的源码 commit"
 
   library-package:
     label: "公共包构建"
@@ -361,6 +362,7 @@ tasks:
     acceptance:
       - "package 由当前完整 Git commit 构建一次"
       - "版本、源码 commit 和 SHA-256 已写入 library-packages 状态证据"
+      - "package source commit 与 PASS 的 Library quality 证据一致，且绑定质量证据 SHA-256"
 
   library-delivery:
     label: "公共包交付"
