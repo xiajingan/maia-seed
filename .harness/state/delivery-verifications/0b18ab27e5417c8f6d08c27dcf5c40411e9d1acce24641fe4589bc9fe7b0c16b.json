@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "manifest_digest": "sha256:0b18ab27e5417c8f6d08c27dcf5c40411e9d1acce24641fe4589bc9fe7b0c16b",
+  "artifacts": [
+    {
+      "type": "dependency-package",
+      "ref": "https://github.com/xiajingan/maia-seed/releases/download/v0.2.0/maia_seed-0.2.0-py3-none-any.whl#sha256=b446794310ff1b94cb89735003454b72f83fc03cc85e9459ae4618db51f7fae5",
+      "digest": "sha256:b446794310ff1b94cb89735003454b72f83fc03cc85e9459ae4618db51f7fae5"
+    }
+  ],
+  "verifiers": [
+    {
+      "argv": [
+        "uv",
+        "run",
+        "--frozen",
+        "python",
+        "tools/verify_delivery_supply_chain.py",
+        "/Users/ws/space/git/mai/maia/maia-seed/.harness/worktrees/sprint-2-retry-reference-foundation/docs/deliveries/maia-seed.retry-reference-foundation.0.2.0.b4467943.json"
+      ],
+      "returncode": 0,
+      "signature": true,
+      "sbom": true,
+      "build_once": true
+    }
+  ],
+  "verified_at": "2026-08-26T06:10:12.380415+00:00",
+  "receipt_digest": "sha256:8ba64a1c811dcff10349a8fa450fe48636c403c1c266b1e2b8ffcd3e09d81466"
+}

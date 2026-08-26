@@ -82,6 +82,21 @@ def test_public_compose_rejects_fake_unregistered_and_unwrapped_details() -> Non
         assert caught.value.reason == "details_seal_fault"
 
 
+def test_public_compose_rejects_exact_class_reflection_forgery() -> None:
+    forged = object.__new__(VerifiedDetailsReference)
+    object.__setattr__(forged, "_value", "opaque-forged")
+    object.__setattr__(forged, "_seal", object())
+    with pytest.raises(ErrorContractError) as caught:
+        compose_error_envelope(
+            "dependency",
+            MachineErrorCode.DEPENDENCY_RETRYABLE,
+            retryable=True,
+            user_message="Safe message",
+            details_ref=forged,
+        )
+    assert caught.value.reason == "details_seal_fault"
+
+
 def test_envelope_rejects_construction_copy_pickle_subclass_and_tampering() -> None:
     result = retryable_envelope()
     assert "opaque-reference" not in repr(result)

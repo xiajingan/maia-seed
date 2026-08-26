@@ -114,6 +114,13 @@ def test_classification_rejects_invalid_kind_shape_and_reference() -> None:
             )
         assert caught.value.reason == "seal_fault"
 
+    forged = object.__new__(errors.VerifiedDetailsReference)
+    object.__setattr__(forged, "_value", "opaque-forged")
+    object.__setattr__(forged, "_seal", object())
+    with pytest.raises(RetryContractError) as caught:
+        classify_dependency_failure(DependencyFailureKind.DEPENDENCY_RETRYABLE, reference=forged)
+    assert caught.value.reason == "seal_fault"
+
 
 def test_failure_rejects_construction_copy_pickle_subclass_and_fake() -> None:
     failure = classify_dependency_failure(DependencyFailureKind.DEPENDENCY_RETRYABLE, reference=verified())
