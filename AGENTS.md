@@ -13,8 +13,7 @@
 
 ## 当前迭代
 
-<!-- TODO: 指向当前活跃的 Sprint 文件 -->
-- 活跃 Sprint：`docs/exec-plans/active/sprint-1-xxx.md`
+- 活跃 Sprint：无（最近完成：`docs/exec-plans/completed/sprint-3-reference-keyed-digest.md`）
 
 <!-- harness:framework-map:start （由 tools/agents_sync.py 维护，请勿手工编辑） -->
 

@@ -6,5 +6,6 @@
 
 | Sprint | 报告路径 | 质量评分 | 评定结论 | 执行日期 | 验证状态 |
 |--------|---------|---------|---------|---------|---------|
+| Sprint 3-reference-keyed-digest | [sprint-3-reference-keyed-digest-quality.md](sprint-3-reference-keyed-digest-quality.md) | 100/100 | ✅ 达标 | 2026-08-31 | draft |
 | _(待生成)_ | — | — | — | — | — |
 <!-- 验证状态: verified / stale / draft -->
