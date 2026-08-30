@@ -35,6 +35,9 @@ def test_only_frozen_modules_exist() -> None:
     assert {path.name for path in root.glob("*.py")} == {
         "__init__.py",
         "_crypto_aead.py",
+        "_crypto_digest.py",
+        "_crypto_digest_models.py",
+        "_crypto_digest_validation.py",
         "_crypto_models.py",
         "_crypto_nonce.py",
         "_crypto_validation.py",
@@ -97,6 +100,11 @@ def test_public_symbols_match_frozen_surface() -> None:
             "AeadCipher",
             "load_aead_key_ring",
             "create_aead_cipher",
+            "ReferenceDigestKeyRing",
+            "ReferenceDigester",
+            "ReferenceDigestContractError",
+            "load_reference_digest_key_ring",
+            "create_reference_digester",
         },
         "seed.retry_reference": {
             "RetryReferenceFoundationError",
@@ -245,7 +253,7 @@ def test_new_public_signatures_and_no_public_test_seams() -> None:
 def test_package_version_security_extra_and_typed_data() -> None:
     root = Path(__file__).parents[2]
     project = tomllib.loads((root / "pyproject.toml").read_text())
-    assert project["project"]["version"] == "0.2.0"
+    assert project["project"]["version"] == "0.3.0"
     assert "cryptography>=44,<51" in project["project"]["optional-dependencies"]["security"]
     assert all("cryptography" not in dependency for dependency in project["project"]["dependencies"])
     assert "py.typed" in project["tool"]["setuptools"]["package-data"]["seed"]

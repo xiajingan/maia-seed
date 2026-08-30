@@ -18,5 +18,6 @@
 | [seed-api-stability-matrix.md](seed-api-stability-matrix.md) | Seed API 稳定性与 Assignment 迁移 | SEED-022/023 | draft |
 | [sprint-1-retry-contract.md](sprint-1-retry-contract.md) | `retry-contract` 公共 API 与交付设计 | S1-D01 / `seed-dep-mud-s2-r01-retry-contract` | draft |
 | [sprint-2-retry-reference-foundation.md](sprint-2-retry-reference-foundation.md) | 组合 `seed.crypto` 的 retry-reference/snapshot 与 provenance 设计 | S2-D01 / `seed-dep-mud-s2-r01-retry-reference-foundation` | draft |
+| [reference-keyed-digest-design.md](reference-keyed-digest-design.md) | `seed.crypto` reference-keyed digest | SD3-D01 / `seed.reference-keyed-digest.v1` / SEED-005,017,018,023 | draft |
 
 <!-- 验证状态: verified（已验证，与代码一致）/ stale（过期，需更新）/ draft（草稿） -->

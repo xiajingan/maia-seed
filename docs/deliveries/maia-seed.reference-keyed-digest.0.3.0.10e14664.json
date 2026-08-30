@@ -1,0 +1,35 @@
+{
+  "artifacts": [
+    {
+      "build_once_evidence": "build://maia-seed/library-packages/sprint-3-reference-keyed-digest/sha256:10e1466431888cef61a54c902332a3ad7b1d39902e582255d7343db3fd90d610/sha256:c53453a834ad396e85e9763f10ceb1d02e48af15231f8a1bb2c7970fa90ea254",
+      "built_at": "2026-08-30T18:05:40.487736+00:00",
+      "package": "maia-seed",
+      "quality_evidence_sha256": "sha256:58216a734288695f681977a2b60af5b48a2fd62c73f6919677d62c1ad7522d25",
+      "ref": "https://github.com/xiajingan/maia-seed/releases/download/v0.3.0/maia_seed-0.3.0-py3-none-any.whl#sha256=10e1466431888cef61a54c902332a3ad7b1d39902e582255d7343db3fd90d610",
+      "rollback_version": "sha256:b446794310ff1b94cb89735003454b72f83fc03cc85e9459ae4618db51f7fae5",
+      "sbom": "sbom://github.com/xiajingan/maia-seed/actions/runs/33327713427/sha256:10e1466431888cef61a54c902332a3ad7b1d39902e582255d7343db3fd90d610/sha256:df501b85fd6c9409dbaff5de944cedae41ec06f1ed1287aa6709ccaf004e4fd2",
+      "sha256": "sha256:10e1466431888cef61a54c902332a3ad7b1d39902e582255d7343db3fd90d610",
+      "signature": "signature://github.com/xiajingan/maia-seed/actions/runs/33327713427/sha256:10e1466431888cef61a54c902332a3ad7b1d39902e582255d7343db3fd90d610/sha256:0b6dc77a28475c543312f90bfede63feeefaecd7a23a8b5ada1b213f03cefaad",
+      "type": "dependency-package",
+      "version": "0.3.0"
+    }
+  ],
+  "delivery_id": "maia-seed.reference-keyed-digest.0.3.0.10e14664",
+  "manifest_digest": "sha256:37cbf779328f3c6d8e5977d06f46fa97f513a911c9f6a545f7dd2d969c29cb6c",
+  "project_id": "maia-seed",
+  "published_at": "2026-08-30T18:21:16.322484+00:00",
+  "quality": {
+    "status": "passed"
+  },
+  "satisfies": {
+    "assignments": [],
+    "dependency_sessions": [
+      {
+        "request_digest": "sha256:2f66a55e0e5e42e992f9773c044b49c60fc5196dc4ff411a63667a44d4ecf3c6",
+        "session_id": "seed-dep-mud-s3-c02-reference-keyed-digest"
+      }
+    ]
+  },
+  "schema_version": 1,
+  "source_commit": "98880654af6a20cfedaef611a1b8cbba2df0cd4d"
+}

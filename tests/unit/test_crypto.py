@@ -13,6 +13,7 @@ from seed.crypto import (
     AeadCipher,
     AeadKeyRing,
     CryptoContractError,
+    ReferenceDigestContractError,
     create_aead_cipher,
     load_aead_key_ring,
 )
@@ -56,6 +57,11 @@ def test_public_surface_signatures_and_reasons() -> None:
         "AeadCipher",
         "load_aead_key_ring",
         "create_aead_cipher",
+        "ReferenceDigestKeyRing",
+        "ReferenceDigester",
+        "ReferenceDigestContractError",
+        "load_reference_digest_key_ring",
+        "create_reference_digester",
     ]
     assert list(inspect.signature(load_aead_key_ring).parameters) == [
         "provider",
@@ -70,6 +76,13 @@ def test_public_surface_signatures_and_reasons() -> None:
         "invalid_crypto_input",
         "nonce_allocation_fault",
         "encryption_fault",
+    )
+    assert get_args(get_type_hints(ReferenceDigestContractError.reason.fget)["return"]) == (
+        "invalid_key_ring",
+        "key_provider_contract_fault",
+        "invalid_digester",
+        "invalid_domain",
+        "invalid_reference",
     )
 
 

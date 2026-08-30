@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "manifest_digest": "sha256:37cbf779328f3c6d8e5977d06f46fa97f513a911c9f6a545f7dd2d969c29cb6c",
+  "artifacts": [
+    {
+      "type": "dependency-package",
+      "ref": "https://github.com/xiajingan/maia-seed/releases/download/v0.3.0/maia_seed-0.3.0-py3-none-any.whl#sha256=10e1466431888cef61a54c902332a3ad7b1d39902e582255d7343db3fd90d610",
+      "digest": "sha256:10e1466431888cef61a54c902332a3ad7b1d39902e582255d7343db3fd90d610"
+    }
+  ],
+  "verifiers": [
+    {
+      "argv": [
+        "uv",
+        "run",
+        "--frozen",
+        "python",
+        "tools/verify_delivery_supply_chain.py",
+        "/Users/ws/space/git/mai/maia/maia-seed/.harness/worktrees/sprint-3-reference-keyed-digest/docs/deliveries/maia-seed.reference-keyed-digest.0.3.0.10e14664.json"
+      ],
+      "returncode": 0,
+      "signature": true,
+      "sbom": true,
+      "build_once": true
+    }
+  ],
+  "verified_at": "2026-08-30T18:22:12.768926+00:00",
+  "receipt_digest": "sha256:588b0f71c0064c6b7798e5fb9f734cf1f0c8095bf904845bbfd21a840c2f8d35"
+}
