@@ -4,6 +4,7 @@
 
 | 报告 | Sprint | 日期 | 结论 | 验证状态 |
 |------|--------|------|------|---------|
+| [develop-branch-protection-audit.md](develop-branch-protection-audit.md) | Governance | 2026-08-31 | PR #3 例外已记录；单人维护采用自审 + Harness Full Review | verified |
 | _(待生成)_ | — | — | — | — |
 
 <!-- 验证状态: verified / stale / draft -->
