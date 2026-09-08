@@ -1,5 +1,7 @@
 # Seed 架构
 
+**当前 Profile**：`custom`
+
 > Seed 是 Maia 的版本化 Python 后端公共基础库。它没有独立产品路线，但自主规划和执行由外部 Dependency Assignment 输入触发的 Maintenance Sprint。
 
 ## 1. 定位与禁止项
