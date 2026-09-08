@@ -27,6 +27,9 @@ assets:
   .codex/skills/harness-task/agents/openai.yaml:
     policy: managed-overwrite
     sha256: f9e02e1063c0274908693acb5c4529dd205bb369d0fbe07e9532bd8462f9504d
+  .git/hooks/pre-commit:
+    policy: managed-overwrite
+    sha256: b7e9c4c038ff3557437ec391e6423d0c1a05360d038386e39b8c9abd7dc84367
   .github/CODEOWNERS:
     policy: managed-overwrite
     sha256: 2bdeb29992acf147055c3b4f40cb89755bb67505dcda3b33d949120d84915efd
