@@ -7,13 +7,16 @@ import argparse
 import json
 import os
 import re
+import socket
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from urllib.error import URLError
+from urllib.parse import urlparse
 from urllib.request import urlopen
 
+from mai_harness.runtime.domain.sprint_context import validate_user_stories
 from mai_harness.runtime.infrastructure.core.paths import PATHS, HarnessPaths
 from mai_harness.runtime.infrastructure.core.process import ManagedProcess
 from mai_harness.runtime.infrastructure.core.state_store import StateStore
@@ -25,6 +28,42 @@ from mai_harness.runtime.infrastructure.technology_config import (
     validate_technology_capabilities,
 )
 from mai_harness.runtime.infrastructure.utils import has_command, try_run
+
+
+def url_status(url: str, timeout: float = 1.0) -> int:
+    try:
+        with urlopen(url, timeout=timeout) as response:
+            return response.status
+    except (URLError, TimeoutError):
+        return 0
+
+
+def endpoint_in_use(url: str) -> bool:
+    parsed = urlparse(url)
+    if not parsed.hostname:
+        return False
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        with socket.create_connection((parsed.hostname, port), timeout=0.25):
+            return True
+    except OSError:
+        return False
+
+
+def validated_origin(value: str, label: str) -> str:
+    """Accept only an explicit HTTP(S) origin suitable for a verification target."""
+    parsed = urlparse(value)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {"", "/"}
+    ):
+        raise ValueError(f"{label} 必须是无凭据的 HTTP(S) origin")
+    return value.rstrip("/")
 
 
 def config_defaults() -> dict:
@@ -79,6 +118,7 @@ class Verification:
     results: list[str] = field(default_factory=list)
     failures: int = 0
     process: ManagedProcess | None = None
+    docker_started: bool = False
 
     def pass_(self, message: str) -> None:
         self.results.append(f"✅ {message}")
@@ -107,6 +147,8 @@ class Verification:
             config_path,
             self.root / self.config["ENV_FILE"],
             self.root / self.config["COMPOSE_FILE"],
+            self.root / "USER_STORIES.md",
+            self.root / "ARCHITECTURE.md",
             self.root / "package.json",
             self.root / "pnpm-lock.yaml",
         ]
@@ -132,7 +174,19 @@ class Verification:
             except ValueError:
                 pass
         before = self.failures
+        stories = self.root / "USER_STORIES.md"
+        if stories.is_file():
+            story_errors = validate_user_stories(stories)
+            if story_errors:
+                for error in story_errors:
+                    self.fail(f"Requirements: {error}")
+            else:
+                self.pass_("Requirements: USER_STORIES.md 全量校验通过")
+        elif (self.root / "config/harness.yml").is_file():
+            self.fail("Requirements: 缺少 USER_STORIES.md 需求真源")
         if (self.root / "config/harness.yml").is_file():
+            if not (self.root / "ARCHITECTURE.md").is_file():
+                self.fail("Architecture: 缺少 ARCHITECTURE.md 架构真源")
             paths = HarnessPaths.detect(project=self.root)
             try:
                 harness = load_harness_config(force=True, path=self.root / "config/harness.yml")
@@ -247,12 +301,26 @@ class Verification:
 
     def health(self, auto_start: bool = True) -> None:
         if auto_start and self.config["EXECUTION_RUNTIME"] == "docker":
+            failures_before = self.failures
             self.docker_up()
-        elif auto_start and self.config["STARTUP_CMD"]:
+            self.docker_started = self.failures == failures_before
+        elif auto_start and self.config["EXECUTION_RUNTIME"] != "docker":
+            if not self.config["STARTUP_CMD"]:
+                self.fail("Health: 本地运行时未登记启动命令")
+                return
+            if endpoint_in_use(self.config["API_URL"]):
+                self.fail("Health: API 端口已被非本轮进程占用")
+                return
             self.process = ManagedProcess.start(self.config["STARTUP_CMD"], cwd=self.root)
             self.report_dir.mkdir(parents=True, exist_ok=True)
             (self.report_dir / ".pids").write_text(f"{self.process.pid}\n", encoding="utf-8")
-            time.sleep(int(self.config["STARTUP_WAIT"] or 15))
+            health_url = self.config["API_URL"] + self.config["HEALTH_ENDPOINT"]
+            deadline = time.monotonic() + int(self.config["STARTUP_WAIT"] or 15)
+            while time.monotonic() < deadline and self.process.running() and url_status(health_url) != 200:
+                time.sleep(0.1)
+            if not self.process.running():
+                self.fail("Health: 受控服务在就绪前退出")
+                return
         for label, url in (
             ("API health", self.config["API_URL"] + self.config["HEALTH_ENDPOINT"]),
             ("API ready", self.config["API_URL"] + self.config["READY_ENDPOINT"]),
@@ -263,11 +331,7 @@ class Verification:
             if label == "API ready" and not self.config["READY_ENDPOINT"]:
                 continue
             started = time.monotonic()
-            try:
-                with urlopen(url, timeout=10) as response:
-                    status = response.status
-            except (URLError, TimeoutError):
-                status = 0
+            status = url_status(url, timeout=10)
             self.check(
                 status == 200,
                 f"Health: {label} → 200 ({time.monotonic() - started:.3f}s)",
@@ -406,6 +470,9 @@ class Verification:
     def cleanup(self) -> None:
         if self.process:
             self.process.stop()
+            (self.report_dir / ".pids").unlink(missing_ok=True)
+        if self.docker_started:
+            self.docker_down()
 
 
 def main() -> int:
@@ -416,9 +483,19 @@ def main() -> int:
     parser.add_argument("--no-start", action="store_true")
     parser.add_argument("--skip-if-recent", type=int, default=0)
     parser.add_argument("--purge", action="store_true")
+    parser.add_argument("--api-url")
+    parser.add_argument("--web-url")
     args = parser.parse_args()
     root = Path.cwd()
-    verification = Verification(load_config(args.config), root, args.report_dir)
+    config = load_config(args.config)
+    try:
+        if args.api_url is not None:
+            config["API_URL"] = validated_origin(args.api_url, "--api-url")
+        if args.web_url is not None:
+            config["WEB_URL"] = validated_origin(args.web_url, "--web-url")
+    except ValueError as exc:
+        parser.error(str(exc))
+    verification = Verification(config, root, args.report_dir)
     phases = args.phases or ["all"]
 
     def should_run(phase: str) -> bool:

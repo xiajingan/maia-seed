@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import os
 import shlex
+import signal
 import subprocess
 import sys
+import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -22,7 +24,9 @@ class CommandSpec:
     shell_command: str | None = None
     cwd: Path | None = None
     env: Mapping[str, str] = field(default_factory=dict)
+    inherit_env: bool = True
     timeout_seconds: float | None = None
+    terminate_process_group: bool = False
     sensitive_env: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
@@ -53,21 +57,80 @@ class CommandOutcome:
     stderr: str
     returncode: int
     display: str
+    failure_kind: str | None = None
+    duration_seconds: float = 0.0
 
 
 def execute(spec: CommandSpec) -> CommandOutcome:
     command: Sequence[str] | str = spec.shell_command if spec.shell_command is not None else spec.argv or ()
+    environment = {**os.environ, **spec.env} if spec.inherit_env else dict(spec.env)
+    started = time.monotonic()
     try:
+        if spec.terminate_process_group:
+            process = subprocess.Popen(
+                command,
+                cwd=spec.cwd,
+                env=environment,
+                shell=spec.shell_command is not None,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=True,
+            )
+            try:
+                stdout, stderr = process.communicate(timeout=spec.timeout_seconds)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    stdout, stderr = process.communicate(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    stdout, stderr = process.communicate()
+                return CommandOutcome(
+                    False,
+                    stdout,
+                    stderr,
+                    124,
+                    spec.display(),
+                    "timeout",
+                    time.monotonic() - started,
+                )
+            return CommandOutcome(
+                process.returncode == 0,
+                stdout,
+                stderr,
+                process.returncode,
+                spec.display(),
+                None if process.returncode == 0 else "exit",
+                time.monotonic() - started,
+            )
         result = subprocess.run(
             command,
             cwd=spec.cwd,
-            env={**os.environ, **spec.env},
+            env=environment,
             timeout=spec.timeout_seconds,
             shell=spec.shell_command is not None,
             check=False,
             text=True,
             capture_output=True,
         )
-        return CommandOutcome(result.returncode == 0, result.stdout, result.stderr, result.returncode, spec.display())
+        return CommandOutcome(
+            result.returncode == 0,
+            result.stdout,
+            result.stderr,
+            result.returncode,
+            spec.display(),
+            None if result.returncode == 0 else "exit",
+            time.monotonic() - started,
+        )
     except (OSError, subprocess.SubprocessError) as exc:
-        return CommandOutcome(False, "", str(exc), getattr(exc, "returncode", 1) or 1, spec.display())
+        failure_kind = "timeout" if isinstance(exc, subprocess.TimeoutExpired) else "spawn"
+        return CommandOutcome(
+            False,
+            "",
+            str(exc),
+            getattr(exc, "returncode", 1) or 1,
+            spec.display(),
+            failure_kind,
+            time.monotonic() - started,
+        )

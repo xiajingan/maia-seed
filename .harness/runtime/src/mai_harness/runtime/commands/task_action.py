@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
 from mai_harness.runtime.application.action_executor import execute_action
-from mai_harness.runtime.application.task_evidence import record_phase, require_ready_attempt
+from mai_harness.runtime.application.task_evidence import (
+    record_phase,
+    require_planned_attempt,
+    require_ready_attempt,
+)
 from mai_harness.runtime.infrastructure.core.paths import HarnessPaths
 from mai_harness.runtime.infrastructure.harness_config import load_harness_config
 from mai_harness.runtime.infrastructure.utils import load_yaml
@@ -40,7 +45,7 @@ def main() -> int:
     if not args.sprint:
         parser.error("--sprint 必填，用于记录可审计的任务阶段证据")
     sprint_path = args.sprint.resolve()
-    values = {"sprint": sprint_path.stem}
+    values = {"sprint": sprint_path.stem, "task_id": args.task_id}
     for item in args.value:
         key, separator, value = item.partition("=")
         if not separator or not key:
@@ -53,9 +58,14 @@ def main() -> int:
         parser.error(f"未知任务类型: {args.task_type}")
     try:
         action_id, declared_parameters = declared_action(task, args.phase)
-        require_ready_attempt(root, sprint_path, paths.rules / "task-rules.yml", args.task_id, args.task_type, task)
+        if task.get("execution_contract") == "integration-v1" and args.phase == "entry":
+            require_planned_attempt(
+                root, sprint_path, paths.rules / "task-rules.yml", args.task_id, args.task_type, task
+            )
+        else:
+            require_ready_attempt(root, sprint_path, paths.rules / "task-rules.yml", args.task_id, args.task_type, task)
         mode = load_harness_config(force=True).get("project", {}).get("mode")
-        supplied_parameters = values.keys() - {"sprint"}
+        supplied_parameters = values.keys() - {"sprint", "task_id"}
         if unknown := supplied_parameters - declared_parameters:
             raise ValueError(f"任务未声明 action 参数: {', '.join(sorted(unknown))}")
         if action_id == "control.integration.finding":
@@ -75,6 +85,14 @@ def main() -> int:
         values,
         outcome.returncode,
         artifacts=_output_artifacts(root, outcome.stdout),
+        diagnostic={
+            "failure_kind": outcome.failure_kind or "exit",
+            "duration_seconds": round(outcome.duration_seconds, 3),
+            "stdout_bytes": len(outcome.stdout.encode()),
+            "stdout_sha256": hashlib.sha256(outcome.stdout.encode()).hexdigest(),
+            "stderr_bytes": len(outcome.stderr.encode()),
+            "stderr_sha256": hashlib.sha256(outcome.stderr.encode()).hexdigest(),
+        },
     )
     print(
         json.dumps(
@@ -119,6 +137,9 @@ def _output_artifacts(root: Path, stdout: str) -> list[Path]:
     def walk(value) -> None:
         if isinstance(value, dict):
             for key, child in value.items():
+                if key == "artifacts" and isinstance(child, list):
+                    values.extend(item for item in child if isinstance(item, str))
+                    continue
                 if key in {"evidence", "target", "receipt", "manifest", "finding"} and isinstance(child, str):
                     values.append(child)
                 else:

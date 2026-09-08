@@ -9,19 +9,35 @@ from mai_harness.runtime.infrastructure.deploy_config import load_environments_c
 from mai_harness.runtime.infrastructure.utils import err, info, ok
 
 IGNORES = {".git", "node_modules", ".worktrees", "dist", "build", "state", ".venv", ".venv312", "__pycache__"}
+IGNORED_PREFIXES = (".harness/secrets/", ".harness/runs/", ".harness/artifacts/", ".harness/state/")
 PATTERNS = {
-    "api-key": re.compile(r"(api[_-]?key|secret|token|password|passwd)\s*[:=]\s*[\"']?([A-Za-z0-9+/=_-]{16,})", re.I),
+    "api-key": re.compile(
+        r"(api[_-]?key|secret|token|password|passwd)\s*[:=]\s*(?:([\"'])([^\"']{16,})\2|([A-Za-z0-9+/=-]{16,}))",
+        re.I,
+    ),
     "aws": re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     "private-key": re.compile(r"-----BEGIN (RSA|OPENSSH|EC|DSA|PGP) PRIVATE KEY-----"),
     "jwt": re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
 }
+CODE_SUFFIXES = {".c", ".cc", ".cpp", ".go", ".java", ".js", ".jsx", ".mjs", ".py", ".rs", ".ts", ".tsx", ".vue"}
+PLACEHOLDER = re.compile(
+    r"(?:^|[-_])(placeholder|example|sentinel|dummy|fake|invalid|test|fixture|disposable|redacted)(?:[-_]|$)",
+    re.I,
+)
+NAMESPACE_KEY = re.compile(r"^[a-z][a-z0-9_-]*(?::[a-z0-9_-]+){2,}$", re.I)
+CODE_IDENTIFIER = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
 
 
 def candidates(root: Path, relative_paths: list[str] | None = None):
     paths = (root / path for path in relative_paths) if relative_paths is not None else root.rglob("*")
     for path in paths:
+        try:
+            relative = path.resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            continue
         if (
             not path.is_file()
+            or relative.startswith(IGNORED_PREFIXES)
             or IGNORES.intersection(path.parts)
             or path.suffix.lower()
             in {
@@ -64,14 +80,19 @@ def scan(root: Path, *, staged: bool = False) -> int:
         text = path.read_text(encoding="utf-8", errors="ignore")
         for kind, pattern in PATTERNS.items():
             for match in pattern.finditer(text):
-                sample = match.group(0)
-                if re.search(r"<.+>|\$\{.+}|x{8,}|placeholder|EXAMPLE", sample, re.I):
+                quoted = kind == "api-key" and match.group(3) is not None
+                sample = (match.group(3) or match.group(4)) if kind == "api-key" else match.group(0)
+                if re.search(r"<.+>|\$\{.+}|x{8,}", sample, re.I) or PLACEHOLDER.search(sample):
                     continue
-                hits.append((path, text.count("\n", 0, match.start()) + 1, kind, sample[:80]))
+                if quoted and NAMESPACE_KEY.fullmatch(sample):
+                    continue
+                if not quoted and path.suffix.lower() in CODE_SUFFIXES and CODE_IDENTIFIER.fullmatch(sample):
+                    continue
+                hits.append((path, text.count("\n", 0, match.start()) + 1, kind))
     if hits:
         err(f"发现 {len(hits)} 处疑似 secret 字面值：")
-        for path, line, kind, sample in hits:
-            print(f"  {path}:{line} [{kind}] {sample}")
+        for path, line, kind in hits:
+            print(f"  {path}:{line} [{kind}]")
         return 1
     ok("未发现疑似 secret")
     return 0

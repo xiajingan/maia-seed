@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 import re
 import sys
 import warnings
 from pathlib import Path
 from typing import Any
 
+from mai_harness.runtime.domain.actions import QUALITY_ACTION_RESERVE_SECONDS, QUALITY_ACTION_TIMEOUT_SECONDS
+from mai_harness.runtime.domain.execution_evidence import safe_json_path, validate_execution_policy
 from mai_harness.runtime.domain.modes import LEGACY_PROJECT_TYPES, PROJECT_TYPES, validate_mode_config
 from mai_harness.runtime.infrastructure.core.command import harness_command
 from mai_harness.runtime.infrastructure.core.paths import PATHS
@@ -31,23 +34,71 @@ SCHEMA = {
     "automation.enabled": (bool, None),
     "automation.default_mode": (str, {"report-only", "safe-fix"}),
     "task_execution.max_review_retries": (int, range(0, 6)),
+    "planning.project_stage": (str, {"greenfield", "established"}),
+    "planning.minimum_bootstrap_domains": (int, range(1, 11)),
+    "planning.bootstrap_completion_receipt": (str, None),
     "delivery.remote": (str, None),
     "walkthrough_env": (str, {"development", "test"}),
     "gates.ui_design_l3": (bool, None),
     "gates.quality_threshold": (int, range(1, 101)),
     "gates.require_e2e": (bool, None),
+    "architecture.profile": (str, {"simple-layered", "domain-centric", "event-driven", "custom"}),
     "deploy.test_mode": (str, {"docker", "cloud-native", "native"}),
     "deploy.prod_mode": (str, {"docker", "cloud-native", "native"}),
 }
 _cache: dict[str, Any] | None = None
 
 
-def deep_merge(base: dict[str, Any], override: dict[str, Any] | None) -> dict[str, Any]:
+def valid_git_branch(value: str) -> bool:
+    """Return whether *value* is a safe, ordinary Git branch name."""
+
+    return bool(
+        value
+        and value != "@"
+        and not value.startswith(("-", "/"))
+        and not value.startswith("refs/")
+        and not value.endswith(("/", "."))
+        and ".." not in value
+        and "@{" not in value
+        and "//" not in value
+        and not any(char.isspace() or ord(char) < 32 or char in "~^:?*[\\" for char in value)
+        and all(part and not part.startswith(".") and not part.endswith(".lock") for part in value.split("/"))
+    )
+
+
+def resolve_delivery_ref(config: dict[str, Any], key: str) -> tuple[str, str, str]:
+    """Resolve a configured delivery target to remote, branch and tracking ref."""
+
+    if key not in {"development", "test", "production"}:
+        raise ValueError(f"未知 delivery ref 语义: {key}")
+    delivery = config.get("delivery")
+    if not isinstance(delivery, dict):
+        raise ValueError("无法解析交付目标: delivery 必须是对象")
+    remote = delivery.get("remote")
+    refs = delivery.get("refs")
+    branch = refs.get(key) if isinstance(refs, dict) else None
+    if (
+        not isinstance(remote, str)
+        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", remote)
+        or not isinstance(branch, str)
+        or not valid_git_branch(branch)
+    ):
+        raise ValueError(f"无法解析交付目标: delivery.remote/refs.{key}")
+    return remote, branch, f"refs/remotes/{remote}/{branch}"
+
+
+def deep_merge(base: dict[str, Any], override: dict[str, Any] | None, *, _path: tuple[str, ...] = ()) -> dict[str, Any]:
     result = copy.deepcopy(base)
     for key, value in (override or {}).items():
-        result[key] = (
-            deep_merge(result[key], value) if isinstance(result.get(key), dict) and isinstance(value, dict) else value
-        )
+        path = (*_path, key)
+        if path == ("python_architecture", "layers"):
+            result[key] = copy.deepcopy(value)
+        else:
+            result[key] = (
+                deep_merge(result[key], value, _path=path)
+                if isinstance(result.get(key), dict) and isinstance(value, dict)
+                else value
+            )
     return result
 
 
@@ -68,9 +119,190 @@ def validate(config: dict[str, Any]) -> list[str]:
             errors.append(f"{path}: 应为 {kind.__name__}")
         elif allowed is not None and value not in allowed:
             errors.append(f"{path}: 非法值 {value!r}")
+    receipt = _get(config, "planning.bootstrap_completion_receipt")
+    if isinstance(receipt, str) and (
+        not receipt
+        or Path(receipt).is_absolute()
+        or ".." in Path(receipt).parts
+        or Path(receipt).suffix not in {".yml", ".yaml"}
+    ):
+        errors.append("planning.bootstrap_completion_receipt: 必须是安全的工程内 YAML 路径")
+    architecture = config.get("python_architecture")
+    if not isinstance(architecture, dict):
+        errors.append("python_architecture: 必须是对象")
+    else:
+        if unknown := set(architecture) - {"source_roots", "layers"}:
+            errors.append(f"python_architecture: 未知字段 {sorted(unknown)}")
+        source_roots = architecture.get("source_roots")
+        if (
+            not isinstance(source_roots, list)
+            or not source_roots
+            or not all(
+                isinstance(item, str) and item and not Path(item).is_absolute() and ".." not in Path(item).parts
+                for item in source_roots
+            )
+        ):
+            errors.append("python_architecture.source_roots: 必须是安全的非空相对路径数组")
+        layers = architecture.get("layers")
+        if not isinstance(layers, dict):
+            errors.append("python_architecture.layers: 必须是对象")
+            layers = {}
+        if _get(config, "architecture.profile") == "custom" and not layers:
+            errors.append("architecture.profile=custom 时必须在 python_architecture 完整声明 layers")
+        for name, rule in layers.items():
+            if (
+                not isinstance(name, str)
+                or not name
+                or not isinstance(rule, dict)
+                or set(rule)
+                != {
+                    "directories",
+                    "allow",
+                }
+            ):
+                errors.append(f"python_architecture.layers.{name}: 必须仅包含 directories/allow")
+                continue
+            directories, allowed = rule.get("directories"), rule.get("allow")
+            if (
+                not isinstance(directories, list)
+                or not directories
+                or not all(isinstance(item, str) and item for item in directories)
+            ):
+                errors.append(f"python_architecture.layers.{name}.directories: 必须是非空字符串数组")
+            if not isinstance(allowed, list) or not all(isinstance(item, str) and item for item in allowed):
+                errors.append(f"python_architecture.layers.{name}.allow: 必须是字符串数组")
+            elif unknown := set(allowed) - set(layers):
+                errors.append(f"python_architecture.layers.{name}.allow 包含未知层: {sorted(unknown)}")
+    observability = config.get("observability")
+    allowed_observability_assets = {"dashboards", "alerts", "queries", "runbooks"}
+    if not isinstance(observability, dict) or set(observability) != {"required_assets"}:
+        errors.append("observability 必须仅包含 required_assets")
+    else:
+        required_assets = observability.get("required_assets")
+        if (
+            not isinstance(required_assets, list)
+            or not all(isinstance(item, str) for item in required_assets)
+            or len(required_assets) != len(set(required_assets))
+            or set(required_assets) - allowed_observability_assets
+        ):
+            errors.append("observability.required_assets 必须是无重复的 dashboards/alerts/queries/runbooks 数组")
     for name, command in config.get("commands", {}).items():
         if not isinstance(command, list) or not all(isinstance(item, str) and item for item in command):
             errors.append(f"commands.{name}: 必须是非空字符串组成的 argv 数组或空数组")
+    errors.extend(_validate_integration_migration(config))
+    quality = config.get("quality", {})
+    runtime = quality.get("runtime", {}) if isinstance(quality, dict) else None
+    runtime_fields = {
+        "command",
+        "cleanup_command",
+        "environment_handoff",
+        "startup_timeout_seconds",
+        "shutdown_timeout_seconds",
+    }
+    if not isinstance(runtime, dict):
+        errors.append("quality.runtime: 必须是对象")
+        runtime = {}
+    elif unknown := set(runtime) - runtime_fields:
+        errors.append(f"quality.runtime: 未知字段 {sorted(unknown)}")
+    runtime_command = runtime.get("command", "")
+    cleanup_command = runtime.get("cleanup_command", "")
+    for field, value in (("command", runtime_command), ("cleanup_command", cleanup_command)):
+        if not isinstance(value, str):
+            errors.append(f"quality.runtime.{field}: 必须是命令名称或空字符串")
+        elif value and not config.get("commands", {}).get(value):
+            errors.append(f"quality.runtime.{field}: 必须引用已定义的非空命令")
+    if cleanup_command and not runtime_command:
+        errors.append("quality.runtime.cleanup_command: 只能在启用 runtime.command 时配置")
+    if not isinstance(runtime.get("environment_handoff", False), bool):
+        errors.append("quality.runtime.environment_handoff: 必须是 boolean")
+    for field in ("startup_timeout_seconds", "shutdown_timeout_seconds"):
+        value = runtime.get(field)
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int | float)
+            or not math.isfinite(value)
+            or value <= 0
+            or value > QUALITY_ACTION_TIMEOUT_SECONDS
+        ):
+            errors.append(f"quality.runtime.{field}: 必须是有限、正数且不超过质量 Action 上限")
+    action_evidence = quality.get("action_evidence", {}) if isinstance(quality, dict) else None
+    if not isinstance(action_evidence, dict):
+        errors.append("quality.action_evidence: 必须是对象")
+        action_evidence = {}
+    elif unknown := set(action_evidence) - {"command", "artifact", "execution_policy"}:
+        errors.append(f"quality.action_evidence: 未知字段 {sorted(unknown)}")
+    evidence_command = action_evidence.get("command", "")
+    evidence_artifact = action_evidence.get("artifact", "")
+    if not isinstance(evidence_command, str):
+        errors.append("quality.action_evidence.command: 必须是命令名称或空字符串")
+    elif evidence_command and not config.get("commands", {}).get(evidence_command):
+        errors.append("quality.action_evidence.command: 必须引用已定义的非空命令")
+    if not isinstance(evidence_artifact, str):
+        errors.append("quality.action_evidence.artifact: 必须是字符串")
+    elif evidence_artifact and not safe_json_path(evidence_artifact):
+        errors.append("quality.action_evidence.artifact: 必须是安全的工程内 JSON 路径")
+    if bool(evidence_command) != bool(evidence_artifact):
+        errors.append("quality.action_evidence: 启用时 command/artifact 必须同时配置")
+    execution_policy = action_evidence.get("execution_policy", {})
+    errors.extend(validate_execution_policy(execution_policy, evidence_enabled=bool(evidence_command and evidence_artifact)))
+    performance = config.get("quality", {}).get("performance_evidence", {})
+    if not isinstance(performance, dict):
+        errors.append("quality.performance_evidence: 必须是对象")
+        performance = {}
+    performance_command = performance.get("command", "")
+    if not isinstance(performance_command, str):
+        errors.append("quality.performance_evidence.command: 必须是命令名称或空字符串")
+    elif performance_command and not config.get("commands", {}).get(performance_command):
+        errors.append("quality.performance_evidence.command: 必须引用已定义的非空命令")
+    for field in ("artifact", "artifact_type"):
+        value = performance.get(field)
+        if not isinstance(value, str) or not value:
+            errors.append(f"quality.performance_evidence.{field}: 必须是非空字符串")
+    test_node = performance.get("test_node")
+    if not isinstance(test_node, str):
+        errors.append("quality.performance_evidence.test_node: 必须是字符串")
+    artifact = Path(str(performance.get("artifact", "")))
+    if artifact.is_absolute() or ".." in artifact.parts or artifact.suffix != ".json":
+        errors.append("quality.performance_evidence.artifact: 必须是安全的工程内 JSON 路径")
+    for field in ("identity_paths", "count_fields", "zero_fields", "categories"):
+        values = performance.get(field)
+        empty_allowed = field == "categories" and not performance_command
+        if (
+            not isinstance(values, list)
+            or (not values and not empty_allowed)
+            or not all(isinstance(item, str) and item for item in values)
+        ):
+            errors.append(f"quality.performance_evidence.{field}: 必须是非空字符串数组")
+        elif field == "identity_paths" and any(Path(item).is_absolute() or ".." in Path(item).parts for item in values):
+            errors.append("quality.performance_evidence.identity_paths: 只允许安全的工程内路径")
+        elif len(values) != len(set(values)):
+            errors.append(f"quality.performance_evidence.{field}: 禁止重复值")
+    count_fields = performance.get("count_fields", [])
+    zero_fields = performance.get("zero_fields", [])
+    if isinstance(count_fields, list) and isinstance(zero_fields, list) and set(count_fields) & set(zero_fields):
+        errors.append("quality.performance_evidence: count_fields/zero_fields 禁止重叠")
+    numeric_performance_fields = (
+        "min_elapsed_seconds",
+        "duration_tolerance_seconds",
+        "timeout_seconds",
+        "target_concurrency",
+        "max_p99_seconds",
+    )
+    for field in numeric_performance_fields:
+        value = performance.get(field)
+        if performance_command and (isinstance(value, bool) or not isinstance(value, int | float) or value <= 0):
+            errors.append(f"quality.performance_evidence.{field}: 必须是正数")
+    timeout = performance.get("timeout_seconds")
+    minimum = performance.get("min_elapsed_seconds")
+    if isinstance(timeout, int | float) and isinstance(minimum, int | float) and timeout <= minimum:
+        errors.append("quality.performance_evidence.timeout_seconds: 必须大于 min_elapsed_seconds")
+    if isinstance(timeout, int | float) and timeout + QUALITY_ACTION_RESERVE_SECONDS > QUALITY_ACTION_TIMEOUT_SECONDS:
+        errors.append(
+            "quality.performance_evidence.timeout_seconds: 必须为其他质量维度预留至少 "
+            f"{QUALITY_ACTION_RESERVE_SECONDS} 秒"
+        )
+    if performance_command and (not performance.get("test_node") or not performance.get("categories")):
+        errors.append("quality.performance_evidence: 启用 producer 时 test_node/categories 不得为空")
     command_names = set(config.get("commands", {}))
     conditions = config.get("command_conditions", {})
     if not isinstance(conditions, dict):
@@ -215,6 +447,29 @@ def validate(config: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _validate_integration_migration(config: dict[str, Any]) -> list[str]:
+    integration = config.get("integration")
+    if integration is None:
+        return []
+    if not isinstance(integration, dict) or set(integration) != {"migration"}:
+        return ["integration: 必须仅包含 migration 对象"]
+    migration = integration.get("migration")
+    if not isinstance(migration, dict) or set(migration) != {"mode", "command"}:
+        return ["integration.migration: 必须仅包含 mode/command"]
+    mode = migration.get("mode")
+    command = migration.get("command")
+    errors: list[str] = []
+    if mode not in {"reversible-release", "checkpoint-one-way"}:
+        errors.append("integration.migration.mode: 只允许 reversible-release/checkpoint-one-way")
+    if not isinstance(command, str):
+        errors.append("integration.migration.command: 必须是命令名称或空字符串")
+    elif mode == "checkpoint-one-way" and not config.get("commands", {}).get(command):
+        errors.append("integration.migration.command: checkpoint-one-way 必须引用已定义的非空命令")
+    elif mode == "reversible-release" and command:
+        errors.append("integration.migration.command: reversible-release 固定使用 harness migration-check all")
+    return errors
+
+
 def load_harness_config(
     *, force: bool = False, path: Path | None = None, defaults_path: Path | None = None
 ) -> dict[str, Any]:
@@ -232,7 +487,16 @@ def load_harness_config(
     user = load_yaml(source) if source.exists() else {}
     if not isinstance(user, dict):
         raise ValueError(f"Harness 项目配置顶层必须是对象: {source}")
+    user_planning = user.get("planning")
+    if source.exists() and (not isinstance(user_planning, dict) or "project_stage" not in user_planning):
+        warnings.warn(
+            "工程缺少 planning.project_stage，按 greenfield fail-closed；请执行 migrate 后显式确认项目阶段",
+            FutureWarning,
+            stacklevel=2,
+        )
     project = user.get("project")
+    if project is not None and not isinstance(project, dict):
+        raise ValueError("harness.yml 校验失败:\n  - project: 必须是对象")
     if isinstance(project, dict):
         legacy_fields = [field for field in ("stack", "profile") if field in project]
         if "type" not in project and len(legacy_fields) == 1:
@@ -246,6 +510,37 @@ def load_harness_config(
                     FutureWarning,
                     stacklevel=2,
                 )
+    legacy_architecture = user.get("python_architecture")
+    if isinstance(legacy_architecture, dict) and "profile" in legacy_architecture:
+        legacy_profile = legacy_architecture.pop("profile")
+        declared_profile = (user.get("architecture") or {}).get("profile")
+        if declared_profile is not None and declared_profile != legacy_profile:
+            raise ValueError("harness.yml 同时声明了冲突的 architecture.profile 与旧 python_architecture.profile")
+        user.setdefault("architecture", {})["profile"] = legacy_profile
+        warnings.warn(
+            "python_architecture.profile 已废弃；请迁移为 architecture.profile",
+            FutureWarning,
+            stacklevel=2,
+        )
+    if source.exists() and (
+        not isinstance(user.get("architecture"), dict) or "profile" not in user["architecture"]
+    ):
+        raise ValueError(
+            "工程缺少显式 architecture.profile；请先运行 Harness migrate 并确认 ARCHITECTURE.md 当前 Profile"
+        )
+    if source.exists() and (
+        not isinstance(user.get("observability"), dict)
+        or "required_assets" not in user["observability"]
+    ):
+        user["observability"] = {
+            "required_assets": ["dashboards", "alerts", "queries", "runbooks"]
+        }
+        warnings.warn(
+            "工程缺少 observability.required_assets，按旧门禁四类资产 fail-closed；"
+            "请显式确认适用资产（可确认后声明空数组）",
+            FutureWarning,
+            stacklevel=2,
+        )
     merged = deep_merge(defaults, user)
     weights = [item.get("weight") for item in merged.get("quality", {}).get("dimensions", {}).values()]
     if any(type(item) is not int or item < 0 for item in weights) or sum(weights) != 100:
