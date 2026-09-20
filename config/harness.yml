@@ -41,6 +41,7 @@ gates:
   quality_threshold: 95
   require_e2e: false
 deploy:
+  build_image_enabled: false
   test_mode: docker
   prod_mode: docker
 commands:
@@ -139,11 +140,13 @@ command_conditions:
     file_exists: pyproject.toml
 command_groups:
   static:
+  - data_lint
   - format_check
   - lint
   - typecheck
   - architecture
   precommit:
+  - data_lint
   - format_check
   - lint
   - typecheck
