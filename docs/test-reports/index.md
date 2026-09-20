@@ -1,11 +1,5 @@
-# 测试质量报告索引
+# test-reports 索引
 
-> ⚠️ **MAI-Harness 框架文件** — 请勿在项目中修改。如需变更请在框架工程中修改并覆盖到此项目。
+> 基线：`maia-greenfield-20260920`；更新：2026-09-20。来源：[需求](../../USER_STORIES.md)、[架构](../../ARCHITECTURE.md)。
 
-> 按 Sprint 归档的质量评分报告，格式遵循 `docs/QUALITY_SCORE.md` 100 分制评分体系。
-
-| Sprint | 报告路径 | 质量评分 | 评定结论 | 执行日期 | 验证状态 |
-|--------|---------|---------|---------|---------|---------|
-| Sprint 3-reference-keyed-digest | [sprint-3-reference-keyed-digest-quality.md](sprint-3-reference-keyed-digest-quality.md) | 100/100 | ✅ 达标 | 2026-08-31 | draft |
-| _(待生成)_ | — | — | — | — | — |
-<!-- 验证状态: verified / stale / draft -->
+当前无条目。旧业务记录已保存到仓库外快照，不作为本基线输入或交付证据。

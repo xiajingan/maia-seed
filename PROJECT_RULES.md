@@ -1,105 +1,39 @@
-# 项目编码规则
+# 项目规则
 
-> ⚠️ **MAI-Harness 框架文件** — 请勿在项目中修改。如需变更请在框架工程中修改并覆盖到此项目。
+> 基线：`maia-greenfield-20260920`；更新：2026-09-20。架构与需求以 [ARCHITECTURE.md](ARCHITECTURE.md)、[USER_STORIES.md](USER_STORIES.md) 为准。
 
-> 项目级的编码规则与约定。Agent 在编码和评审任务中加载本文件。
-> 分层架构规则见 [ARCHITECTURE.md](ARCHITECTURE.md)。
-> 框架级编码规范见 `docs/CODING_BACKEND.md` / `docs/CODING_FRONTEND.md`。
+## 当前阶段
 
-## 命名约定
+重建输入、Review 和确认先于实现；当前无 active Sprint、可部署业务制品或已接受新 Delivery。旧实现与执行状态不能用于跳过新基线门禁。不要创建空 package.json、占位 API 或总是成功的测试来消除缺失能力诊断。
 
-| 对象 | 约定 | 示例 |
-|------|------|------|
-| 文件名（组件） | 项目前端约定 | `UserProfile.tsx` |
-| 文件名（Python 模块） | snake_case | `user_profile.py` |
-| 变量/函数 | Python snake_case；TypeScript camelCase | `get_user_by_id` / `getUserById` |
-| 常量 | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT` |
-| 类型/接口 | PascalCase | `UserProfile` |
-| 前端组合函数/Hook | 遵循项目框架约定 | `useAuth` |
-| 路由路径 | kebab-case | `/user-profile` |
-| 数据库表 | snake_case | `user_profiles` |
-| CSS 类名 | kebab-case / BEM | `user-profile__avatar` |
+## 文档边界
 
-<!-- TODO: 根据项目实际情况调整 -->
+架构与技术方案只定义技术选型、领域/数据所有权、接口协议、安全、一致性与失败行为。TiDB、SeaweedFS、BullMQ/Redis 等资源、节点、拓扑、网络入口、PV、镜像/Chart 和部署要求只维护在 [Maia 部署文档](../docs/DEPLOYMENT.md) 及其环境手册；技术方案引用入口，不复制部署内容。Snowflake 生成器编号属于算法契约，其物理实例映射才属于部署。待验证项由工程完成，不默认转成用户逐项选型或批准。
 
-## 编码约束（Key Rules）
+## 实现边界
 
-> 这些规则将被 Lint 机械化强制执行。违反即红灯。
+- TS strict / Node.js 为服务与公共包主栈，HTTP 使用 Fastify。Celt 与 Harness/开发脚本的 Python 不构成业务服务例外扩张。
+- 边界执行运行时 Schema 校验；使用 unknown 收窄输入，避免无约束 any；函数/类型命名明确，模块按职责拆分。
+- 数据归属、租户和授权检查集中于用例；禁止跨服务读表、复制 Provider 实现或让前端提交授权事实。
+- 领域不耦合传输/数据库引擎；SQL 参数化，Schema 只经所属服务的版本化迁移。
+- 外部调用、消息与异步重试明确幂等及结果未知语义；禁止无限重试和吞掉异常冒充成功。
+- 结构化日志关联请求与业务 ID，凭据与敏感原文不明文进入日志、事件或模型上下文。
+- Seed 按真实 dependency 交付 TS 包；MQ/Storage 是独立服务，所属服务治理自己的契约客户端。
 
-### 通用
+## 数据库与业务 ID
 
-1. **禁止空 catch 块**：至少记录日志
-2. **函数体 ≤ 50 行**：超出须拆分
-3. **圈复杂度 ≤ 10**：每个函数
-4. **禁止硬编码密钥**：所有密钥通过环境变量注入
-5. **结构化日志**：使用 logger 库，禁止 `console.log`
-6. **SQL 参数化**：禁止字符串拼接 SQL
-7. **文件 ≤ 300 行**：超出须拆分模块
+遵守 [Maia 架构 DB-01～05](../ARCHITECTURE.md#22-数据库五条硬约束) 与 Snowflake 契约：TiDB HTAP、Drizzle MySQL 方言、MySQL 8.0 兼容子集；业务逻辑在代码，不使用存储过程/数据库业务编程、复杂 JSON 查询或全文索引。业务主键/引用为 Snowflake BIGINT，API/事件/队列用十进制字符串，禁止 JS number 转换和数据库自增代替。
 
-### 后端
+使用已固定的 [Snowflake v1 格式及 SDK 契约](../ARCHITECTURE.md#23-snowflake-生成与传输契约)，不得按工程、租户或业务修改 epoch/位布局；唯一公共实现归 Seed 的 maia-snowflake（seed.snowflake），所有 TS 服务锁定消费，不各自复制算法；发号不依赖在线服务，workerId 唯一分配与安全复用由部署配置保障。
 
-8. **边界处校验数据形状**：后端 Controller 使用 Pydantic/架构指定模型，前端使用 TypeScript Schema 校验外部输入
-9. **Service 不感知传输层**：禁止在 Service 中引用 HTTP Request/Response
-10. **Repository 不含业务逻辑**：纯数据访问
-11. **统一错误格式**：`{ code, message, requestId }`
+Review 覆盖 ORM 生成 SQL、迁移与必要手写 SQL，以及 ID 精度、全局节点分配和回拨/重启语义。JSON 载荷存储与标准关系查询不等同于获准使用复杂 JSON 函数；ORM 参数化也不等同于语法或执行语义已验证。
 
-### 前端
+按 [Maia Drizzle 使用边界](../ARCHITECTURE.md#24-drizzle-与-tidb-兼容边界)，禁止 Relational Query API 的关系加载 `with`（含 `findMany`、`findFirst` 及封装），技术适配与示例不得绕过。使用 Drizzle 显式查询构建，普通 JOIN 允许；符合兼容规则的 SQL CTE `WITH` / `db.$with()` / `db.with()` 不在此禁令内。Review 必须辨别 API 语义，不以关键词扫描宣称已完成自动检查。
 
-12. **组件单一职责**：一个文件一个组件
-13. **禁止 Props 超过 7 个**：超出须使用组合模式或上下文
-14. **遵循 ARCHITECTURE.md 的渲染模式**：不得假设特定前端框架或 Server Component
-15. **禁止 any 类型**：使用 unknown + 类型收窄
+## 验证与交付
 
-<!-- TODO: 根据项目实际情况调整 -->
+构建与契约验收沿用 [Maia 已确定组件版本](../ARCHITECTURE.md#25-已确定的组件版本基线)，只引入能力实际需要的依赖；包的 peer/engines 范围由已接受的消费者契约确定。安全修复与受控升级按架构更新，不能把锁定解释为长期不升级。
 
-## Pre-commit Checklist
+业务实现建立后，在 `config/harness.yml` 登记真实 lint/typecheck、行为测试、构建及相关数据库/契约命令。覆盖授权拒绝、跨租户隔离、恢复与外部副作用；文档检查不能替代业务验收。Node、npm 依赖、OCI 镜像和引擎版本必须锁定，升级有消费者验证和恢复证据。
 
-> Agent 提交代码前必须逐项确认。
-
-- [ ] `config/harness.yml` 对当前 stack 声明的 lint/typecheck/build 命令通过
-- [ ] `command_groups.static` 全部通过（默认 Ruff/AST lint + ESLint/tsc）
-- [ ] `commands.unit` 全部通过（Python 默认 pytest）
-- [ ] 新增代码有对应测试
-- [ ] 无硬编码密钥或敏感信息
-- [ ] 符合分层架构规则（见 ARCHITECTURE.md）
-- [ ] 无 `console.log`（使用结构化日志）
-- [ ] 新增/变更的 API 有 Pydantic/架构指定的请求响应 Schema 校验
-- [ ] 数据库变更通过迁移文件（禁止手动修改）
-- [ ] 相关文档已同步更新
-
-<!-- TODO: 根据项目实际情况调整 -->
-
-## 代码质量基线
-
-| 指标 | 阈值 | 说明 |
-|------|------|------|
-| 测试覆盖率 | ≥ 80% | 关键路径 100% |
-| 构建时间 | ≤ 60s | CI 构建 |
-| Bundle 大小 | ≤ 200KB | 首屏 JS（gzipped） |
-| 慢查询 | ≤ 200ms | 数据库查询 |
-| API 响应 | ≤ 500ms | P95 |
-| Lighthouse | ≥ 90 | Performance 得分 |
-
-<!-- TODO: 根据项目实际情况调整 -->
-
-## 黄金原则（Golden Rules）
-
-> 跨项目通用工程原则，详见 [docs/GOLDEN_RULES.md](docs/GOLDEN_RULES.md)（symlink 自动同步）。
-> G-1（共享工具库）、G-2（禁止 YOLO 探测）、G-3（不变式集中管理）。
-
-## 共享工具库
-
-> 黄金原则 G-1：优先使用共享工具库，禁止手写重复 helper。
-
-| 工具 | 路径 | 说明 |
-|------|------|------|
-| <!-- TODO --> | `src/shared/` | <!-- TODO --> |
-
-## 禁止事项
-
-- ❌ 禁止绕过项目选定前端框架直接操作 DOM
-- ❌ 禁止使用 `eval`、`Function()` 等动态执行
-- ❌ 禁止在循环中进行数据库/API 调用（使用批量操作）
-- ❌ 禁止 YOLO 式探测数据——见 GOLDEN_RULES.md §G-2
-- ❌ 禁止跨层直接引用（见 ARCHITECTURE.md 依赖方向规则）
-- ❌ 禁止魔法数字/硬编码业务常量——见 GOLDEN_RULES.md §G-3
+文档重设当前只运行需求结构、链接、配置及 diff 检查。性能/容量/覆盖阈值由新设计的风险和验收决定，不继承旧测试报告中的达标结论。

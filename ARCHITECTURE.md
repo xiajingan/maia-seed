@@ -1,93 +1,55 @@
-# Seed 架构
+# Maia Seed 架构
 
-**当前 Profile**：`custom`
+> 基线：`maia-greenfield-20260920`；2026-09-20 重建，待 Review。上游：[Maia 架构](../ARCHITECTURE.md)、[Maia 需求](../USER_STORIES.md)。当前无新实现、已接受依赖或可消费制品。
 
-> Seed 是 Maia 的版本化 Python 后端公共基础库。它没有独立产品路线，但自主规划和执行由外部 Dependency Assignment 输入触发的 Maintenance Sprint。
+## 1. 定位
 
-## 1. 定位与禁止项
+Seed 是供 Maia TS/Node.js 业务服务按需消费的公共技术库，以版本化 npm 制品交付，不部署独立进程。旧 Python wheel、业务绑定测试、Story、Assignment、Delivery 和执行记录已经退出当前基线；其历史不构成新包范围、版本或兼容义务。
 
-Seed 提供无业务语义、可替换、可独立测试的横切能力。它不是独立服务，不拥有产品需求、业务数据或独立部署拓扑。新增能力通常来源于后端消费工程写入本工程的 `dependency` Assignment；Seed 独立判断归属、映射本地 Story、规划 Sprint、实现测试并发布 Artifact，消费工程不直接修改 Seed Sprint。
+从 Mud 的真实 Story/Task 需求开始，接受具有边界和验收的公共能力，再自主规划 Seed 迭代。不会先翻译旧 Seed 全部模块，也不会因为可能复用而阻塞所有服务。
 
-Seed 不提供 Tenant、Account、Task 等领域模型或业务状态，不访问业务服务，不拥有业务 Schema/Repository/Alembic migration，不管理 Helm release，也不封装 Kubernetes SDK。业务工程可依赖 Seed，Seed 不反向依赖业务工程；禁止为“未来可能复用”提前抽象。
+## 2. 边界
 
-## 2. 能力范围
-
-| 包 | 能力 |
+| 可以按真实需求提供 | 必须留在消费者/服务 |
 |---|---|
-| `seed.config` | Pydantic Settings、文件/环境分层、Secret 引用、启动校验与配置摘要 |
-| `seed.context` | 用户/服务/终端 principal，tenant/request/correlation 上下文传播 |
-| `seed.errors` | 稳定错误码、retryable、用户提示、恢复动作及 HTTP/WS/消息映射 |
-| `seed.events` | 版本化 envelope、事件 ID、Schema 注册接口和测试夹具 |
-| `seed.state` | 通用状态机原语；具体业务状态由业务工程定义 |
-| `seed.security` | principal 认证端口、脱敏、输入限制、重放/速率防护端口，以及无状态 `access-scope-kernel.v1` |
-| `seed.crypto` | 加密/解密/轮换抽象；只接收由部署环境注入的 KeyProvider |
-| `seed.secrets` | 解析数据库密码、第三方 token 等通用 Secret reference；SecretProvider 返回受生命周期约束、不可序列化/不可日志化的临时值 |
-| `seed.audit` | AuditEvent 契约及风险分级的失败策略接口 |
-| `seed.observability` | 结构化日志、OTel Trace、指标注册和关联 ID |
-| `seed.runtime` | `/livez`/`readyz`、优雅停机、时钟/ID、有限重试、熔断状态机与 HTTP client 基线 |
-| `seed.redis` | 可选 Redis 连接、生命周期、健康检查、序列化与技术性锁/缓存端口；不定义业务 key、TTL 或一致性策略 |
-| `seed.oceanbase` | 可选 SQLAlchemy/OceanBase Engine、Session 生命周期、连接池、健康检查与方言能力探测；不提供业务 Model、Repository、SQL 或 migration |
+| 配置加载与校验、上下文传播、ID/时钟等基础机制 | 业务配置项、默认值、租户策略和实体身份 |
+| 错误/事件 envelope、序列化和契约测试工具 | 领域错误码、事件类型、状态枚举与兼容政策 |
+| Secret/加密端口、脱敏机制、日志/Trace 初始化 | 凭据使用权限、数据分类、审计事件语义 |
+| 数据库/Redis 生命周期、健康和技术故障映射 | Repository、SQL、Schema/migration、业务 key/TTL 与幂等策略 |
+| 经接受需求定义的纯授权范围算法和一致性夹具 | Mud 管理组图/Role/Policy；各服务的 Creator/Owner/User 事实与最终授权用例 |
 
-依赖方向固定为：`config` 只解析 Secret reference；应用在调用点经 `secrets.SecretProvider` 取通用秘密；`security` 声明认证/脱敏策略并可依赖 `crypto` 接口；`crypto` 经专用 KeyProvider 取加密密钥。Provider 失败是 readiness/用例错误，秘密以短生命周期值出现且不可进入配置对象，配置摘要在取值前生成。
+`maia-mq` 与 `maia-storage` 是独立服务，不是 Seed Provider 进程。服务 API 的薄客户端/Schema 由服务所有者治理；不把 BullMQ worker、对象引擎或领域服务塞入 Seed。Seed 不调用 Mud/Stem，不读取业务表，不反向依赖消费工程。
 
-## 3. 云原生运行契约
+MQ 客户端继承上游已定的 HTTPS 批量发布/长轮询消费协议，由 MQ 所有者发布；Iris 的 DeepAgents、模型与 checkpoint 适配归 Iris，不因多个工程使用 TS 就移入 Seed。资源、节点与部署要求统一引用 [Maia 部署设计](../docs/DEPLOYMENT.md)，技术方案不复制部署内容。
 
-应用只配置逻辑服务 URL，不感知 K3d/K3s/TKE。Seed 支持环境变量和挂载文件、Secret 文件引用、readiness/liveness、SIGTERM drain、连接超时/有限重试/熔断接口、资源与版本元数据。它不读取 Kubernetes API、不发现 Pod、不硬编码集群域名；服务发现由 Service/CoreDNS 完成。
+Celt 保留 Python 客户端边界，不依赖 Seed。Sage/Vine 使用服务契约或必要前端包，不因同为 TS 被迫引入 Node 后端库。
 
-### 3.1 内部模块分层
+## 3. 包与契约
 
-```text
-kernel: ids/clock/result/state primitives
-  ↓
-contracts: context/error/event/audit
-  ↓
-ports: secret/crypto/auth/http/telemetry
-  ↓
-adapters(optional extras): fastapi/otel/httpx
-```
+Maia 已选择 TiDB、Drizzle、MySQL 8.0 兼容子集与全局 Snowflake。Seed 若提供数据库适配，只治理 Drizzle/mysql2 连接生命周期和技术错误；业务 Schema、查询、迁移、规则和分析口径留在所属服务。不可将存储过程、数据库业务触发器、复杂 JSON/全文或 TiDB 专有 SQL 包装成“通用能力”绕过上游原则。
 
-Kernel 不依赖 Pydantic 以外框架；adapter 可依赖 contract，反向禁止。Context 使用不可变 request scope，异步任务显式序列化允许字段，避免 contextvar 泄漏到后台任务。发布面按最小可选 extras 拆分为 `core`、`fastapi`、`security`、`otel`、`redis`、`oceanbase`；消费者只安装实际使用的 extra，禁止基础安装隐式拉入所有中间件驱动。
+适用的运行时、编译器和数据库组件版本继承 [Maia 已确定组件版本](../ARCHITECTURE.md#25-已确定的组件版本基线)。数据库适配及示例遵守 [Drizzle 使用边界](../ARCHITECTURE.md#24-drizzle-与-tidb-兼容边界)：禁止 Relational Query API 的关系加载 `with`，不得在 helper/插件中恢复同类自动查询和嵌套组装。消费者仍可使用显式 JOIN；SQL CTE 的 `WITH` 不属于该禁令。
 
-### 3.2 契约细则
+包管理、Schema 技术适配、测试与构建工具均继承上游 §2.5 的精确版本，遵守 [Maia 工程默认值与决策边界](../ARCHITECTURE.md#26-工程默认值与决策边界)：首个真实包初始化时使用固定 pnpm 版本并提交锁文件，只引入能力实际需要的依赖；工程负责落实和验证，不推迟选版，无需用户逐项指定。
 
-- Error：`domain/code/retryable/user_message/recovery/correlation_id/details_ref`，details 默认不跨边界。
-- Event：`eventId/eventType/schemaVersion/occurredAt/tenantId/actor/correlationId/payload`；未知字段策略和 upcaster 明确。
-- Audit：actor/action/target/reason/before-after digest/result/risk；高风险审计失败默认阻止提交。
-- Retry：仅对声明幂等的操作和白名单错误；full jitter、deadline budget、Retry-After；未知写结果转查询对账。
-- State primitive：expected version CAS、允许迁移、终态；业务枚举只在所有者工程。
-- Access scope：固定输入为 capability decision、direct/effective Own predicate、Creator/User membership 与版本，输出 allow/deny、scope 和来源；不包含 ManagerGroup 图、PermissionPolicy 或业务实体读取。Mud 负责 capability/effective Own，资源所有者负责本地 AccessMetadata 和最终调用。
+**`maia-snowflake` 是 Seed 提供的本地 ID SDK（`seed.snowflake`）。** 统一实现生成、编解码、校验及并发/回拨/重启保护，以版本化 TS/npm 制品交付。格式及业务语义继承 [Maia Snowflake v1](../ARCHITECTURE.md#23-snowflake-生成与传输契约)，所有 TS 服务包括 Mud 均直接复用；库不调用 Mud 或依赖在线分配服务。workerId 由部署配置保证唯一分配与安全复用，详见 [部署文档](../docs/DEPLOYMENT.md)。算法细节和故障测试留在 SDK 实现设计中，Celt 按平台协议无损传递 ID。
 
-### 3.3 版本和兼容
+Snowflake 的公共库归属已经确定；首个真实 dependency 落实公开接口、消费者验收和交付版本，不再作为是否抽取的候选。当前未生成执行 Assignment 或可消费制品；完整规则见 [Maia 数据库及 ID 原则](../ARCHITECTURE.md#22-数据库五条硬约束)。
 
-公开 surface 维护 API stability matrix。弃用先告警一个 minor，破坏变化升 major；事件 schema 与 wheel 解耦，消费者 migration manifest 记录最早/最晚版本。Seed 自身不提供旧业务 alias；兼容窗口结束删除 adapter。
+采用已选 TypeScript strict / Node.js 基线；包名、模块拆分、ESM/CJS、面向已选 Node 基线的 engines/peer 兼容声明和测试工具在首个已接受依赖中固定，不另选运行时或编译器版本。按必要功能拆分，避免无关消费者加载数据库/加密等依赖；未交付能力不提供空 API 冒充契约。
 
-## 4. Assignment 驱动的迭代与发布
+公开接口须可独立测试、版本化且不含消费者业务语义。每个已接受能力有 capability ID、消费者、输入/输出和失败语义、一致性/兼容测试、升级/移除条件。只有存在需求且技术边界稳定才进入公共包；单消费者的业务适配留在消费工程。
 
-Seed 不规划脱离真实需求的产品 Sprint。业务工程发现公共基础缺口时，从自己的 Story/Task 派生最小 `dependency` Assignment，写入 Seed `docs/assignments/inbox/`；输入只描述目标行为、无业务语义边界和消费者验收，不猜测版本、不规定 Seed 内部实现。Seed 在下一次主动规划时接受、调整、延期或拒绝，并自主映射本地 Story/Sprint：
+## 4. 交付链
 
-```text
-consumer Story/Task → dependency Assignment (pending)
-  → Seed 主动规划并映射本地 Story/Sprint (planned)
-  → Seed 最小契约/实现与纯单元/adapter 测试
-  → 一次构建并签名最终 version 的不可变 wheel/digest
-  → 发布绑定 Assignment 的 dependency-package Delivery (delivered)
-  → 消费工程读取精确 version + SHA-256，更新锁文件并完成自身 Test
-```
+消费 Story/Task 发现缺口 → dependency Assignment → Seed 接受或有理由拒绝 → 新 Seed Story/Sprint → 实现和 Review → Build Once npm 制品 → Delivery → 消费工程锁定及验收。
 
-Assignment 是唯一跨工程需求输入，不再维护静态消费者映射表；原 24 条依赖边已按来源 Story 无损迁移为 12 个 Assignment，逐条映射见 [docs/assignments/MIGRATION.md](docs/assignments/MIGRATION.md)。迁移后发现的 `SEED-013/seed.secrets` 输入以独立 pending Assignment 补充，不回写历史迁移，也不把已有源码冒充为已接受/已交付。维护、安全修复和构建工具升级可以来自具体消费者 Assignment，也可以由 Seed 维护者创建本地 Maintenance Story；后者必须说明受影响的已知消费者与迁移验证。跨仓库变更遵循 add → migrate consumers → remove：先发布可兼容的新能力，再由各消费者通过独立 Assignment/Story 迁移，最后在明确版本删除旧入口；不得长期双实现或用 path/Git 依赖代替正式制品。
+Assignment 不预填未产生的版本，不以创建 Assignment 代替接受。Delivery 绑定来源、包名、精确版本、摘要/完整性、源码提交、签名、SBOM/provenance 和消费者验证条件。验证组织真实信任根；配置缺失时不得自动宣称通过。开发联调可以有受控候选，Test/Production 不使用浮动标签、Git/path 依赖或重打包同版本。
 
-每个 Assignment 交付必须具备：有效且绑定输入摘要的 accepted Response、来源引用、本地 Story/Sprint、完整 Git object ID、最小公开 API、纯单元/adapter 测试、适用的消费者契约证据、SemVer 与兼容矩阵、升级/回滚说明，以及含 package/version/SHA-256/签名/SBOM/provenance 的 `dependency-package` Delivery。同一 Delivery ID 不得覆盖换包；Delivery 只有经项目配置的真实 verifier 校验签名、SBOM 和 Build Once、生成绑定 Delivery 与全部 Artifact 身份的受管 receipt 后才能成为 `delivered`。破坏变更还必须根据包索引与代码搜索登记已知消费者和旧入口删除版本。staged/release 是同一私有包索引中的权限/channel 状态，提升不得重建、重命名或改变 wheel；安装必须校验受信签名与锁文件 SHA-256，并禁止同名公共索引回退以防 dependency confusion。
+破坏性变更采用 add → migrate consumers → remove，记录已知消费者、兼容矩阵、回滚与删除版本。npm 发布机制和当前 Harness 交付验证需在首个真实迭代适配；现有 Python 工具仍是治理运行时，不是可用的新 TS 供应链证明。
 
-## 5. 设计与发布
+## 5. 当前需求与启动条件
 
-公开 API 经 `seed.*` 稳定入口暴露，Provider 使用 Protocol/ABC 注入；核心层只依赖标准库/Pydantic，FastAPI/OTel 等放可选 extra。包遵循语义化版本，锁定 Python 3.12+，产出 wheel、类型声明、SBOM 和签名。事件 `schemaVersion` 独立于 wheel 版本：生产者先发布可选字段或新版本，消费者验证并迁移，最后按登记版本停止旧事件；重放器在保留期内保留对应 decoder。破坏变更升主版本并附迁移和旧版本删除计划，不提供无限期 alias。
+[USER_STORIES.md](USER_STORIES.md) 的旧 23 个预置故事已清除。用户已明确指定 Seed 实现 `maia-snowflake`，这是已确定的公共能力；当前尚无执行中的 dependency 或已交付包。配置、身份上下文、错误、加密、观测及纯权限算法等其他缺口仍按实际消费者需求评估，不据此自动开始 Seed Sprint。
 
-Mud、Stem、Mint、Tea、Iris、Sop 等 Python 后端通过带签名、SBOM、provenance 和类型声明的版本化 wheel 依赖 Seed，在锁文件中固定精确 version + SHA-256。Test/Production 禁止 Git、分支、本地 path 或公共索引回退依赖。Celt、Vine、Sage 不安装、不打包也不消费 Seed 契约制品。
-
-## 6. 质量门槛
-
-pytest、mypy strict、Ruff 强制；Seed 仓库提供契约夹具和最小 FastAPI/消息样例，各真实消费者在自身 CI 运行兼容测试并回报版本矩阵，从而不产生 Seed 对业务工程的反向依赖。Test 样例运行在 K3d/K3s，覆盖配置挂载、Secret、探针、优雅停机和 Trace 传播。
-
-每个 adapter 还需故障注入：Secret 不可用、OTel collector 不可用、SIGTERM 中途、HTTP timeout、重复事件、时钟偏差。日志/异常 snapshot 做 Secret canary 扫描。授权 kernel 由 Mud、Stem、Tea 及后续私有资源所有者在各自 CI 运行同一正反夹具；Seed 不连接这些服务，也不形成反向依赖。
-
-能力成熟度用于 Seed 自主排期而非独立产品路线：S0 kernel/contracts → S1 按需 framework/middleware adapters → S2 reliable client → S3 consumer compatibility kit。每次 Sprint 必须追溯到已接受 Assignment 或明确的本地 Maintenance Story，不建设“大而全基础平台”。
+下一次迭代从具体 dependency 的目标行为和消费者测试生成新 Story，再 Review、确认；旧版本号、wheel、签名回执和治理例外不能继承为新包验收。框架源码/Agent/Skill 保留，独立的分支保护治理工作树也保留，不将它当作业务交付记录。

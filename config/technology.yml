@@ -1,5 +1,77 @@
+# 目标技术栈；重建期尚无业务 manifest，未达到实现门禁。
 version: 1
 components:
   library:
-    language: python
+    language: typescript
     framework: generic
+    manifest: package.json
+    required_commands:
+    - lint
+    - typecheck
+    - unit
+    - package_build
+    unit_command: unit
+    artifact_glob: dist/*.tgz
+
+# Maia 架构数据约束的可执行检查配置。
+data_policy:
+  sources:
+  - src
+  - web/src
+  - scripts
+  - migrations
+  - drizzle
+  - sql
+  - contracts
+  database:
+    engine: tidb
+    version: 8.5.8
+    dialect: mysql
+    dialect_version: '8.0'
+    orm: drizzle
+    orm_version: 0.45.2
+  forbidden_database_objects:
+  - procedure
+  - function
+  - trigger
+  - event
+  forbidden_sql_functions:
+  - JSON_TABLE
+  - JSON_ARRAYAGG
+  - JSON_OBJECTAGG
+  - JSON_MERGE_PATCH
+  - JSON_MERGE_PRESERVE
+  forbidden_sql_features:
+  - fulltext
+  - lateral
+  - skip_locked
+  - tidb_extensions
+  forbid_drizzle_relations: true
+  business_ids:
+    strategy: snowflake
+    scope: platform
+    storage_type: bigint
+    wire_type: string
+    fields:
+    - id
+    - '*Id'
+    - '*_id'
+    exclude_fields:
+    - traceId
+    - trace_id
+    - spanId
+    - span_id
+    - externalId
+    - external_id
+    - '*ExternalId'
+    - '*_external_id'
+    - workerId
+    - worker_id
+    forbidden_generators:
+    - auto_increment
+    - autoincrement
+    - serial
+    - auto_random
+    - uuid
+    - uuidv4
+    - randomUUID

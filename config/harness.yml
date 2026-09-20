@@ -1,3 +1,4 @@
+# 重建期：业务命令待真实实现，缺失时门禁应阻断；不得用空壳宣称交付。
 version: 2
 project:
   id: maia-seed
@@ -42,128 +43,47 @@ gates:
   require_e2e: false
 deploy:
   build_image_enabled: false
-  test_mode: docker
-  prod_mode: docker
+  test_mode: cloud-native
+  prod_mode: cloud-native
 commands:
-  format_check:
-  - uv
-  - run
-  - --frozen
-  - python
-  - -m
-  - ruff
-  - format
-  - --check
-  - .
-  lint:
-  - uv
-  - run
-  - --frozen
-  - python
-  - -m
-  - ruff
-  - check
-  - .
-  typecheck:
-  - uv
-  - run
-  - --frozen
-  - python
-  - -m
-  - mypy
-  - src/seed
-  architecture:
-  - uv
-  - run
-  - --frozen
-  - python
-  - -m
-  - pytest
-  - -q
-  - tests/architecture
-  - --no-cov
-  unit:
-  - uv
-  - run
-  - --frozen
-  - python
-  - -m
-  - pytest
-  - -q
-  - --cov-report=json:coverage/coverage.json
-  integration:
-  - uv
-  - run
-  - --frozen
-  - python
-  - -m
-  - pytest
-  - -q
-  - tests/integration
-  - -m
-  - integration
-  - --no-cov
-  dependency_audit:
-  - uv
-  - run
-  - --frozen
-  - pip-audit
-  - --skip-editable
-  build:
-  - uv
-  - build
-  package_build:
-  - uv
-  - build
+  data_lint:
+  - '{harness}'
+  - data-lint
+  dev: []
+  lint: []
+  format_check: []
+  typecheck: []
+  architecture: []
+  unit: []
+  integration: []
+  package_build: []
   frontend_lint: []
   frontend_typecheck: []
   frontend_unit: []
   e2e: []
-command_conditions:
-  format_check:
-    file_exists: pyproject.toml
-  lint:
-    file_exists: pyproject.toml
-  typecheck:
-    file_exists: pyproject.toml
-  architecture:
-    file_exists: tests/architecture/test_boundaries.py
-  unit:
-    file_exists: pyproject.toml
-  integration:
-    file_exists: tests/integration/test_fastapi_context.py
-  dependency_audit:
-    file_exists: uv.lock
-  build:
-    file_exists: pyproject.toml
-  package_build:
-    file_exists: pyproject.toml
+  doc_lint:
+  - '{harness}'
+  - doc-lint
+  requirements_validate:
+  - '{harness}'
+  - requirements
+  - validate
+  build: []
 command_groups:
   static:
   - data_lint
-  - format_check
   - lint
   - typecheck
-  - architecture
   precommit:
   - data_lint
-  - format_check
+  - requirements_validate
+  - doc_lint
+  ci:
+  - data_lint
   - lint
   - typecheck
-  - architecture
   - unit
   - build
-  security:
-  - dependency_audit
-python_architecture:
-  source_roots:
-  - src
-  layers:
-    seed:
-      directories:
-      - seed
-      allow:
-      - seed
 management:
   control_id: maia
   control_path: ..
@@ -171,19 +91,12 @@ management:
   assignment_inbox: docs/assignments/inbox
   assignment_responses: docs/assignments/responses
   deliveries_dir: docs/deliveries
-  supply_chain_verification_commands:
-  - - uv
-    - run
-    - --frozen
-    - python
-    - tools/verify_delivery_supply_chain.py
-    - '{manifest}'
 planning:
   minimum_bootstrap_domains: 3
   bootstrap_completion_receipt: docs/architecture/bootstrap-completion.yml
-  project_stage: established
+  project_stage: greenfield
 architecture:
-  profile: custom
+  profile: simple-layered
 observability:
   required_assets:
   - dashboards

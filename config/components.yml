@@ -1,11 +1,3 @@
+# 设计重建期没有已构建组件；首轮实现时登记真实 OCI/npm 制品。
 version: 1
-components:
-  maia-seed:
-    type: python-package
-    source: src/seed
-    artifacts:
-      - dist/*.whl
-      - dist/*.whl.sig
-      - dist/*.whl.sbom.json
-      - dist/*.whl.provenance.json
-    contracts: []
+components: {}

@@ -1,55 +1,19 @@
+# 尚无可部署业务制品。配置真实环境、Chart、Secret 引用并验收后方可启用。
 version: 1
-baseline_id: dual-deploy-v1
+baseline_id: maia-greenfield-20260920
 promote_strategy: manual
-train_schedule: 0 17 * * 1-5
 build:
-  image_repo: harness-example
-  default_platform: linux/amd64
-  artifact_dir: .harness/images
-  targets:
-    app:
-      type: docker
-      dockerfile: Dockerfile
-      context: .
-      platforms:
-      - linux/amd64
-      profiles:
-      - release
-      delivery: artifact
+  targets: {}
 environments:
   test:
     enabled: false
-    deploy_mode: docker
-    strategy: serial
-    remote_workdir: /opt/app/test
-    compose_file: deploy/test/docker-compose.yml
-    remote_compose_file: deploy/test/docker-compose.yml
-    remote_runtime_env_file: deploy/test/runtime.env
-    health_url: https://test.example.com/health
-    smoke_cmd: ''
-    extra_required_secrets: []
+    deploy_mode: cloud-native
+    strategy: rolling
+    helm_releases: []
+    credential_refs: []
   prod:
     enabled: false
     deploy_mode: cloud-native
     strategy: rolling
-    cluster_identity: example-prod-cluster
-    namespace: example-app
-    credential_refs:
-    - PROD_KUBECONFIG
-    helm_releases:
-    - name: app
-      chart: deploy/helm/app
-      version: 0.1.0
-      values_files:
-      - deploy/helm/values-prod.yml
-      image_targets:
-      - app
-    health_url: https://app.example.com/health
-    smoke_cmd: ''
-    extra_required_secrets: []
-    health_window_minutes: 30
-    rollback_strategy: helm-rollback
-    rollback_thresholds:
-      error_rate_5xx: 0.01
-      p95_latency_ms: 500
-      cpu_saturation: 0.85
+    helm_releases: []
+    credential_refs: []

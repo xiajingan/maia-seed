@@ -1,19 +1,19 @@
-# {项目名称}
+# maia-seed
 
 > 本文件是 Agent 的知识地图（≤120 行）。框架区域由 `tools/agents_sync.py` 自动同步，
 > 项目区域可自由编辑。修改框架区域无效——请到 mai-harness 修改 `templates/AGENTS.md`。
 
 ## 项目概述
 
-<!-- TODO: 一句话描述项目 -->
+按消费者实际需求交付的 TypeScript 技术公共包。
 
-**技术栈**：<!-- TODO: 如 Python/FastAPI + TypeScript/Vue + PostgreSQL + Redis -->
-**部署形态**：<!-- TODO: Docker Compose / K8s / 云原生 -->
+**技术栈**：TypeScript / Node.js / npm library
+**部署形态**：版本化 npm 制品，无独立服务进程
 **部署环境**：见 `config/deploy.yml`
 
 ## 当前迭代
 
-- 活跃 Sprint：无（最近完成：`docs/exec-plans/completed/sprint-3-reference-keyed-digest.md`）
+- 活跃 Sprint：无；`maia-greenfield-20260920` 设计 Review 阶段，旧执行状态已归档。
 
 <!-- harness:framework-map:start （由 tools/agents_sync.py 维护，请勿手工编辑） -->
 
@@ -101,17 +101,9 @@ templates/migration/        # DB migration 模板（脚本 readFileSync）
 
 ## 项目目录结构
 
-<!-- TODO: 替换为实际目录结构 -->
-
-```
-├── src/                    # 后端源码
-├── web/                    # 前端源码
-├── docs/                   # 知识库（→ 见上方索引）
-├── AGENTS.md               # 本文件
-├── ARCHITECTURE.md         # 系统架构
-├── PROJECT_RULES.md        # 项目编码规则
-└── USER_STORIES.md         # 用户故事
-```
+- `ARCHITECTURE.md`、`USER_STORIES.md`：当前设计输入；尚未进入实现。
+- `docs/`：新基线文档与空执行索引；旧产物见上游重建记录。
+- `config/`：目标栈与治理配置；`.harness/` 保留通用框架。
 
 ## 智能体约定
 
