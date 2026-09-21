@@ -43,6 +43,6 @@
 
 ## 接入与验收要求
 
-每个新 Story 必须关联真实 Assignment 和消费 Story/Task，包含角色、触发、困难、可观察结果、约束、非目标和行为 AC。Review、确认后才进入 Seed Sprint；MQ/Storage 的独立服务功能不得纳入 Seed 包故事。
+每个新 Story 必须关联真实 Assignment 和消费 Story/Task，包含角色、触发、困难、可观察结果、约束、非目标和行为 AC。Review、确认后才进入 Seed Sprint；业务 handler、队列运行服务和对象引擎不纳入 Seed 包故事。优先原生能力，只在真实重复需求证明收益时提取薄技术库，不预设独立 maia-mq 或通用队列包装。
 
 本轮清理和输入重设不生成需求确认回执，不把任何 Story 标为 ready/done，也不启动包构建或发布。

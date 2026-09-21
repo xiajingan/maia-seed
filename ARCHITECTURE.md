@@ -18,9 +18,9 @@ Seed 是供 Maia TS/Node.js 业务服务按需消费的公共技术库，以版�
 | 数据库/Redis 生命周期、健康和技术故障映射 | Repository、SQL、Schema/migration、业务 key/TTL 与幂等策略 |
 | 经接受需求定义的纯授权范围算法和一致性夹具 | Mud 管理组图/Role/Policy；各服务的 Creator/Owner/User 事实与最终授权用例 |
 
-`maia-mq` 与 `maia-storage` 是独立服务，不是 Seed Provider 进程。服务 API 的薄客户端/Schema 由服务所有者治理；不把 BullMQ worker、对象引擎或领域服务塞入 Seed。Seed 不调用 Mud/Stem，不读取业务表，不反向依赖消费工程。
+队列默认由业务工程直接使用 BullMQ 原生 Queue/Worker，不要求独立 maia-mq。Seed 仅在多个真实消费者需要时提供薄技术适配、生命周期或观测工具，不运行 Worker 服务、不承接业务 handler/队列台账。对象引擎及领域服务也不进入 Seed；真实服务的 API 客户端由服务所有者治理。Seed 不调用 Mud/Stem，不读取业务表，不反向依赖消费工程。
 
-MQ 客户端继承上游已定的 HTTPS 批量发布/长轮询消费协议，由 MQ 所有者发布；Iris 的 DeepAgents、模型与 checkpoint 适配归 Iris，不因多个工程使用 TS 就移入 Seed。资源、节点与部署要求统一引用 [Maia 部署设计](../docs/DEPLOYMENT.md)，技术方案不复制部署内容。
+队列消费边界见 [Maia 异步任务架构](../docs/architecture/async-jobs.md)，新增公共抽象按 [架构取舍原则](../ARCHITECTURE.md#12-架构取舍原则) 证明减少整体维护成本，不预建 mq-client 或通用 Broker。Iris 的 DeepAgents、模型与 checkpoint 适配归 Iris，不因多个工程使用 TS 就移入 Seed。资源、节点与部署要求统一引用 [Maia 部署设计](../docs/DEPLOYMENT.md)，技术方案不复制部署内容。
 
 Celt 保留 Python 客户端边界，不依赖 Seed。Sage/Vine 使用服务契约或必要前端包，不因同为 TS 被迫引入 Node 后端库。
 
