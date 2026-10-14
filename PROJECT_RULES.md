@@ -22,17 +22,17 @@
 
 ## 数据库与业务 ID
 
-遵守 [Maia 架构 DB-01～05](../ARCHITECTURE.md#22-数据库五条硬约束) 与 Snowflake 契约：TiDB HTAP、Drizzle MySQL 方言、MySQL 8.0 兼容子集；业务逻辑在代码，不使用存储过程/数据库业务编程、复杂 JSON 查询或全文索引。业务主键/引用为 Snowflake BIGINT，API/事件/队列用十进制字符串，禁止 JS number 转换和数据库自增代替。
+遵守 [Maia 架构 DB-01～05](../docs/architecture/data-architecture.md#2-数据库五条硬约束) 与 Snowflake 契约：TiDB HTAP、Drizzle MySQL 方言、MySQL 8.0 兼容子集；业务逻辑在代码，不使用存储过程/数据库业务编程、复杂 JSON 查询或全文索引。业务主键/引用为 Snowflake BIGINT，API/事件/队列用十进制字符串，禁止 JS number 转换和数据库自增代替。
 
-使用已固定的 [Snowflake v1 格式及 SDK 契约](../ARCHITECTURE.md#23-snowflake-生成与传输契约)，不得按工程、租户或业务修改 epoch/位布局；唯一公共实现归 Seed 的 maia-snowflake（seed.snowflake），所有 TS 服务锁定消费，不各自复制算法；发号不依赖在线服务，workerId 唯一分配与安全复用由部署配置保障。
+使用已固定的 [Snowflake v1 格式及 SDK 契约](../docs/architecture/data-architecture.md#3-snowflake-生成与传输契约)，不得按工程、租户或业务修改 epoch/位布局；唯一公共实现归 Seed 的 maia-snowflake（seed.snowflake），所有 TS 服务锁定消费，不各自复制算法；发号不依赖在线服务，workerId 唯一分配与安全复用由部署配置保障。
 
 Review 覆盖 ORM 生成 SQL、迁移与必要手写 SQL，以及 ID 精度、全局节点分配和回拨/重启语义。JSON 载荷存储与标准关系查询不等同于获准使用复杂 JSON 函数；ORM 参数化也不等同于语法或执行语义已验证。
 
-按 [Maia Drizzle 使用边界](../ARCHITECTURE.md#24-drizzle-与-tidb-兼容边界)，禁止 Relational Query API 的关系加载 `with`（含 `findMany`、`findFirst` 及封装），技术适配与示例不得绕过。使用 Drizzle 显式查询构建，普通 JOIN 允许；符合兼容规则的 SQL CTE `WITH` / `db.$with()` / `db.with()` 不在此禁令内。Review 必须辨别 API 语义，不以关键词扫描宣称已完成自动检查。
+按 [Maia Drizzle 使用边界](../docs/architecture/data-architecture.md#4-drizzle-与-tidb-兼容边界)，禁止 Relational Query API 的关系加载 `with`（含 `findMany`、`findFirst` 及封装），技术适配与示例不得绕过。使用 Drizzle 显式查询构建，普通 JOIN 允许；符合兼容规则的 SQL CTE `WITH` / `db.$with()` / `db.with()` 不在此禁令内。Review 必须辨别 API 语义，不以关键词扫描宣称已完成自动检查。
 
 ## 验证与交付
 
-构建与契约验收沿用 [Maia 已确定组件版本](../ARCHITECTURE.md#25-已确定的组件版本基线)，只引入能力实际需要的依赖；包的 peer/engines 范围由已接受的消费者契约确定。安全修复与受控升级按架构更新，不能把锁定解释为长期不升级。
+构建与契约验收沿用 [Maia 已确定组件版本](../docs/architecture/technology-stack.md#2-组件版本基线)，只引入能力实际需要的依赖；包的 peer/engines 范围由已接受的消费者契约确定。安全修复与受控升级按架构更新，不能把锁定解释为长期不升级。
 
 业务实现建立后，在 `config/harness.yml` 登记真实 lint/typecheck、行为测试、构建及相关数据库/契约命令。覆盖授权拒绝、跨租户隔离、恢复与外部副作用；文档检查不能替代业务验收。Node、npm 依赖、OCI 镜像和引擎版本必须锁定，升级有消费者验证和恢复证据。
 

@@ -28,13 +28,13 @@ Celt 保留 Python 客户端边界，不依赖 Seed。Sage/Vine 使用服务契�
 
 Maia 已选择 TiDB、Drizzle、MySQL 8.0 兼容子集与全局 Snowflake。Seed 若提供数据库适配，只治理 Drizzle/mysql2 连接生命周期和技术错误；业务 Schema、查询、迁移、规则和分析口径留在所属服务。不可将存储过程、数据库业务触发器、复杂 JSON/全文或 TiDB 专有 SQL 包装成“通用能力”绕过上游原则。
 
-适用的运行时、编译器和数据库组件版本继承 [Maia 已确定组件版本](../ARCHITECTURE.md#25-已确定的组件版本基线)。数据库适配及示例遵守 [Drizzle 使用边界](../ARCHITECTURE.md#24-drizzle-与-tidb-兼容边界)：禁止 Relational Query API 的关系加载 `with`，不得在 helper/插件中恢复同类自动查询和嵌套组装。消费者仍可使用显式 JOIN；SQL CTE 的 `WITH` 不属于该禁令。
+适用的运行时、编译器和数据库组件版本继承 [Maia 已确定组件版本](../docs/architecture/technology-stack.md#2-组件版本基线)。数据库适配及示例遵守 [Drizzle 使用边界](../docs/architecture/data-architecture.md#4-drizzle-与-tidb-兼容边界)：禁止 Relational Query API 的关系加载 `with`，不得在 helper/插件中恢复同类自动查询和嵌套组装。消费者仍可使用显式 JOIN；SQL CTE 的 `WITH` 不属于该禁令。
 
-包管理、Schema 技术适配、测试与构建工具均继承上游 §2.5 的精确版本，遵守 [Maia 工程默认值与决策边界](../ARCHITECTURE.md#26-工程默认值与决策边界)：首个真实包初始化时使用固定 pnpm 版本并提交锁文件，只引入能力实际需要的依赖；工程负责落实和验证，不推迟选版，无需用户逐项指定。
+包管理、Schema 技术适配、测试与构建工具均继承上游技术栈版本基线的精确版本，遵守 [Maia 工程默认值与决策边界](../docs/architecture/technology-stack.md#4-工程默认值与决策边界)：首个真实包初始化时使用固定 pnpm 版本并提交锁文件，只引入能力实际需要的依赖；工程负责落实和验证，不推迟选版，无需用户逐项指定。
 
-**`maia-snowflake` 是 Seed 提供的本地 ID SDK（`seed.snowflake`）。** 统一实现生成、编解码、校验及并发/回拨/重启保护，以版本化 TS/npm 制品交付。格式及业务语义继承 [Maia Snowflake v1](../ARCHITECTURE.md#23-snowflake-生成与传输契约)，所有 TS 服务包括 Mud 均直接复用；库不调用 Mud 或依赖在线分配服务。workerId 由部署配置保证唯一分配与安全复用，详见 [部署文档](../docs/DEPLOYMENT.md)。算法细节和故障测试留在 SDK 实现设计中，Celt 按平台协议无损传递 ID。
+**`maia-snowflake` 是 Seed 提供的本地 ID SDK（`seed.snowflake`）。** 统一实现生成、编解码、校验及并发/回拨/重启保护，以版本化 TS/npm 制品交付。格式及业务语义继承 [Maia Snowflake v1](../docs/architecture/data-architecture.md#3-snowflake-生成与传输契约)，所有 TS 服务包括 Mud 均直接复用；库不调用 Mud 或依赖在线分配服务。workerId 由部署配置保证唯一分配与安全复用，详见 [部署文档](../docs/DEPLOYMENT.md)。算法细节和故障测试留在 SDK 实现设计中，Celt 按平台协议无损传递 ID。
 
-Snowflake 的公共库归属已经确定；首个真实 dependency 落实公开接口、消费者验收和交付版本，不再作为是否抽取的候选。当前未生成执行 Assignment 或可消费制品；完整规则见 [Maia 数据库及 ID 原则](../ARCHITECTURE.md#22-数据库五条硬约束)。
+Snowflake 的公共库归属已经确定；首个真实 dependency 落实公开接口、消费者验收和交付版本，不再作为是否抽取的候选。当前未生成执行 Assignment 或可消费制品；完整规则见 [Maia 数据库及 ID 原则](../docs/architecture/data-architecture.md#2-数据库五条硬约束)。
 
 采用已选 TypeScript strict / Node.js 基线；包名、模块拆分、ESM/CJS、面向已选 Node 基线的 engines/peer 兼容声明和测试工具在首个已接受依赖中固定，不另选运行时或编译器版本。按必要功能拆分，避免无关消费者加载数据库/加密等依赖；未交付能力不提供空 API 冒充契约。
 

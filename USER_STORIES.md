@@ -37,9 +37,9 @@
 
 ## 已确定的技术约束
 
-用户已指定 **Seed 实现 `maia-snowflake` 本地 ID SDK**（`seed.snowflake`），供 Mud 及其他 TS 服务直接调用，不依赖在线分配服务。生成、编解码和校验统一遵循 [Snowflake v1 格式与业务语义](../ARCHITECTURE.md#23-snowflake-生成与传输契约)；workerId 由部署配置保障，SDK 验证并发、回拨、序列耗尽、重启防重和大整数往返。
+用户已指定 **Seed 实现 `maia-snowflake` 本地 ID SDK**（`seed.snowflake`），供 Mud 及其他 TS 服务直接调用，不依赖在线分配服务。生成、编解码和校验统一遵循 [Snowflake v1 格式与业务语义](../docs/architecture/data-architecture.md#3-snowflake-生成与传输契约)；workerId 由部署配置保障，SDK 验证并发、回拨、序列耗尽、重启防重和大整数往返。
 
-公共库归属已定，后续 dependency 落实接口与消费者验收，当前尚无可消费制品。TiDB/Drizzle、MySQL 8.0 及业务逻辑边界沿用 [Maia 数据库原则](../ARCHITECTURE.md#22-数据库五条硬约束)。
+公共库归属已定，后续 dependency 落实接口与消费者验收，当前尚无可消费制品。TiDB/Drizzle、MySQL 8.0 及业务逻辑边界沿用 [Maia 数据库原则](../docs/architecture/data-architecture.md#2-数据库五条硬约束)。
 
 ## 接入与验收要求
 
