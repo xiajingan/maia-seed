@@ -12,11 +12,11 @@ Seed 是供 Maia TS/Node.js 业务服务按需消费的公共技术库，以版�
 
 | 可以按真实需求提供 | 必须留在消费者/服务 |
 |---|---|
-| 配置加载与校验、上下文传播、ID/时钟等基础机制 | 业务配置项、默认值、租户策略和实体身份 |
+| 配置加载与校验、上下文传播、ID/时钟等基础机制 | 业务配置项、默认值、根 Workspace 策略和实体身份 |
 | 错误/事件 envelope、序列化和契约测试工具 | 领域错误码、事件类型、状态枚举与兼容政策 |
 | Secret/加密端口、脱敏机制、日志/Trace 初始化 | 凭据使用权限、数据分类、审计事件语义 |
 | 数据库/Redis 生命周期、健康和技术故障映射 | Repository、SQL、Schema、业务 key/TTL 与幂等策略 |
-| 经接受需求定义的纯授权范围算法和一致性夹具 | Mud 管理组图/Role/Policy；各服务的 Creator/Owner/User 事实与最终授权用例 |
+| 经接受需求定义的纯授权范围算法（`access-scope-kernel.v1`）和一致性夹具 | Mud Workspace 树/Membership 与 AccessContext 的产生和发布；各服务的 Creator/Owner/使用范围事实、附属对象到主对象的映射与最终授权用例 |
 
 队列默认由业务工程直接使用 BullMQ 原生 Queue/Worker，不要求独立 maia-mq。Seed 仅在多个真实消费者需要时提供薄技术适配、生命周期或观测工具，不运行 Worker 服务、不承接业务 handler/队列台账。对象引擎及领域服务也不进入 Seed；真实服务的 API 客户端由服务所有者治理。Seed 不调用 Mud/Stem，不读取业务表，不反向依赖消费工程。
 
@@ -33,6 +33,19 @@ Maia 已选择 TiDB、Drizzle、MySQL 8.0 兼容子集与全局 Snowflake。Seed
 包管理、Schema 技术适配、测试与构建工具均继承上游技术栈版本基线的精确版本，遵守 [Maia 工程默认值与决策边界](../docs/architecture/technology-stack.md#4-工程默认值与决策边界)：使用固定 pnpm 版本并提交锁文件，只引入能力实际需要的依赖。
 
 **`maia-snowflake` 是 Seed 提供的本地 ID SDK（`seed.snowflake`）。** 统一实现生成、编解码、校验及并发/回拨/重启保护，以版本化 TS/npm 制品交付。格式及业务语义继承 [Maia Snowflake v1](../docs/architecture/data-architecture.md#3-snowflake-生成与传输契约)，所有 TS 服务包括 Mud 均直接复用；库不调用 Mud 或依赖在线分配服务。workerId 由部署配置保证唯一分配与安全复用，详见 [部署文档](../docs/DEPLOYMENT.md)。算法细节和故障测试留在 SDK 实现设计中，Celt 按平台协议无损传递 ID。
+
+**`access-scope-kernel.v1` 是纯授权范围算法**，语义以 [Maia §2.1 权限模型](../USER_STORIES.md#21-权限模型) 与 [Maia 架构 §3.2](../ARCHITECTURE.md#32-权限) 为准，由实际消费者需求驱动交付：
+
+| 输入 | 内容 |
+|---|---|
+| Owner | `owner_workspace_id`（W）与可空的 `owner_user_id`（U，表示个人节点 W/U） |
+| 使用范围元素 | 指定 User，或指定 Workspace（仅本级 / 含下级）；为空表示仅 Owner |
+| AccessContext | 由 Mud 发布：请求主体的直接成员关系及其上级链、有效 `manager` 集合 `{workspaceId, source(direct\|inherited), viaWorkspaceId}`、version |
+
+- **Own**：`owner_workspace_id` ∈ 有效 `manager` 集合，或（`owner_user_id` = 本人，且 `owner_workspace_id` ∈ 本人直接成员关系）。
+- **Use**：Own，或使用范围元素命中本人、本人直接所属的 Workspace，或上级链中选择“含下级”的 Workspace。
+- 输出单条裁决（Own / Use / 拒绝及原因）与可下推的集合过滤条件；AccessContext 缺失、版本未知或根 Workspace 不一致时拒绝。
+- 不读取成员关系、不调用 Mud、不保存路径或上级 ID，不处理附属对象映射、依赖资源校验或能力兼容性；这些留在消费服务。
 
 数据库与 ID 的完整约束见 [Maia 数据库及 ID 原则](../docs/architecture/data-architecture.md#2-数据库五条硬约束)。
 
