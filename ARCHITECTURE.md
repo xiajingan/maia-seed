@@ -1,6 +1,6 @@
 # Maia Seed 架构
 
-上游：[Maia 架构](../ARCHITECTURE.md)、[技术栈与版本](../docs/architecture/technology-stack.md)、[产品需求](USER_STORIES.md)。
+上游：[Maia 架构](../ARCHITECTURE.md)、[技术栈与版本](../docs/architecture/technology-stack.md)、[产品需求](../docs/product/seed/index.md)。
 
 ## 1. 定位
 
@@ -34,7 +34,7 @@ Maia 已选择 TiDB、Drizzle、MySQL 8.0 兼容子集与全局 Snowflake。Seed
 
 **`maia-snowflake` 是 Seed 提供的本地 ID SDK（`seed.snowflake`）。** 统一实现生成、编解码、校验及并发/回拨/重启保护，以版本化 TS/npm 制品交付。格式及业务语义继承 [Maia Snowflake v1](../docs/architecture/data-architecture.md#3-snowflake-生成与传输契约)，所有 TS 服务包括 Mud 均直接复用；库不调用 Mud 或依赖在线分配服务。workerId 由部署配置保证唯一分配与安全复用，详见 [部署文档](../docs/DEPLOYMENT.md)。算法细节和故障测试留在 SDK 实现设计中，Celt 按平台协议无损传递 ID。
 
-**`access-scope-kernel.v1` 是纯授权范围算法**，语义以 [Maia §2.1 权限模型](../USER_STORIES.md#21-权限模型) 与 [Maia 架构 §3.2](../ARCHITECTURE.md#32-权限) 为准，由实际消费者需求驱动交付：
+**`access-scope-kernel.v1` 是纯授权范围算法**，语义以 [Maia §2.1 权限模型](../docs/product/constraints/permission-model.md#21-权限模型) 与 [Maia 架构 §3.2](../ARCHITECTURE.md#32-权限) 为准，由实际消费者需求驱动交付：
 
 | 输入 | 内容 |
 |---|---|

@@ -1,6 +1,6 @@
 # 项目规则
 
-> 基线：`maia-greenfield-20260920`；更新：2026-09-20。架构与需求以 [ARCHITECTURE.md](ARCHITECTURE.md)、[USER_STORIES.md](USER_STORIES.md) 为准。
+> 基线：`maia-greenfield-20260920`；更新：2026-09-20。架构与需求以 [ARCHITECTURE.md](ARCHITECTURE.md)、[产品需求](../docs/product/seed/overview.md) 为准。
 
 ## 当前阶段
 
