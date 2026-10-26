@@ -13,7 +13,7 @@
 - [ARCHITECTURE.md](ARCHITECTURE.md)：本工程架构与边界；整体架构见 `../ARCHITECTURE.md`。
 - [PROJECT_RULES.md](PROJECT_RULES.md)：编码规则。
 - `docs/tech/`：迭代技术方案；`docs/test-cases/`：测试用例。
-- [用户故事](../docs/product/seed/index.md)：本工程 Story（总仓维护，ID 带 `SEED-` 前缀）。
+- [用户故事](../docs/product/seed/overview.md)：本工程 Story（总仓维护，ID 带 `SEED-` 前缀）。
 
 ## 智能体约定
 

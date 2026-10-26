@@ -1,6 +1,6 @@
 # Maia Seed 架构
 
-上游：[Maia 架构](../ARCHITECTURE.md)、[技术栈与版本](../docs/architecture/technology-stack.md)、[产品需求](../docs/product/seed/index.md)。
+上游：[Maia 架构](../ARCHITECTURE.md)、[技术栈与版本](../docs/architecture/technology-stack.md)、[产品需求](../docs/product/seed/overview.md)。
 
 ## 1. 定位
 
