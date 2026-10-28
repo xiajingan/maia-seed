@@ -1,58 +1,43 @@
 # Maia Seed 架构
 
-上游：[Maia 架构](../ARCHITECTURE.md)、[技术栈与版本](../docs/architecture/technology-stack.md)、[产品需求](../docs/product/seed/overview.md)。
+产品职责入口见 [Seed 概览](../docs/product/seed/overview.md)，公共包治理见[技术栈与消费者交付](../docs/architecture/technology-stack.md#51-公共包与消费者交付)，总体归属见[Maia 架构](../ARCHITECTURE.md)。
 
 ## 1. 定位
 
-Seed 是供 Maia TS/Node.js 业务服务按需消费的公共技术库，以版本化 npm 制品交付，不部署独立进程。
+Seed 为实际 TS/Node.js 消费服务提供版本化 npm 技术包，不部署独立进程。边界和验收由真实消费者需求驱动，业务适配保留在消费工程；Celt 不依赖 Seed，Sage/Vine 不引入后端库。
 
-公共模块由实际消费需求确定边界与验收，业务适配保留在消费工程。
+## 2. 包边界
 
-## 2. 边界
-
-| 可以按真实需求提供 | 必须留在消费者/服务 |
+| 可按真实需求提供 | 消费者/服务继续拥有 |
 |---|---|
-| 配置加载与校验、上下文传播、ID/时钟等基础机制 | 业务配置项、默认值、根 Workspace 策略和实体身份 |
-| 错误/事件 envelope、序列化和契约测试工具 | 领域错误码、事件类型、状态枚举与兼容政策 |
-| Secret/加密端口、脱敏机制、日志/Trace 初始化 | 凭据使用权限、数据分类、审计事件语义 |
-| 数据库/Redis 生命周期、健康和技术故障映射 | Repository、SQL、Schema、业务 key/TTL 与幂等策略 |
-| 经接受需求定义的纯授权范围算法（`access-scope-kernel.v1`）和一致性夹具 | Mud Workspace 树/Membership 与 AccessContext 的产生和发布；各服务的 Creator/Owner/使用范围事实、附属对象到主对象的映射与最终授权用例 |
+| 配置加载/校验、上下文、ID/时钟机制 | 业务配置、默认值、根策略和实体身份 |
+| 错误/事件 envelope、序列化、契约测试工具 | 领域错误码、事件类型、业务状态及兼容政策 |
+| Secret/加密端口、脱敏、日志/Trace 初始化 | 凭据权限、分类与审计语义 |
+| DB/Redis 生命周期、健康和技术故障映射 | Repository、SQL、Schema、业务 key/TTL 及幂等 |
+| 已接受需求的纯授权算法及一致性夹具 | Mud 的 AccessContext，资源服务的 AccessMetadata/附属映射及最终授权 |
 
-队列默认由业务工程直接使用 BullMQ 原生 Queue/Worker，不要求独立 maia-mq。Seed 仅在多个真实消费者需要时提供薄技术适配、生命周期或观测工具，不运行 Worker 服务、不承接业务 handler/队列台账。对象引擎及领域服务也不进入 Seed；真实服务的 API 客户端由服务所有者治理。Seed 不调用 Mud/Stem，不读取业务表，不反向依赖消费工程。
+Seed 不读业务表、不调用 Mud/Stem、不反向依赖消费者，也不运行 Worker/业务 handler 或队列台账。队列使用[原生 BullMQ 边界](../docs/architecture/async-jobs.md#1-能力优先与默认接入)，多个真实消费者确有重复技术需要时才提供薄适配，不预建 mq-client/Broker。服务 API 客户端由真实所有者治理，Iris 模型和 checkpoint 适配留在 Iris。
 
-队列消费边界见 [Maia 异步任务架构](../docs/architecture/async-jobs.md)，新增公共抽象按 [架构取舍原则](../ARCHITECTURE.md#12-架构取舍原则) 证明减少整体维护成本，不预建 mq-client 或通用 Broker。Iris 的 DeepAgents、模型与 checkpoint 适配归 Iris，不因多个工程使用 TS 就移入 Seed。资源、节点与部署要求统一引用 [Maia 部署设计](../docs/DEPLOYMENT.md)，技术方案不复制部署内容。
+## 3. 当前契约
 
-Celt 保留 Python 客户端边界，不依赖 Seed。Sage/Vine 使用服务契约或必要前端包，不因同为 TS 被迫引入 Node 后端库。
+### 3.1 maia-snowflake
 
-## 3. 包与契约
+`maia-snowflake`（`seed.snowflake`）是本地 ID SDK，提供生成、编解码、校验及并发/回拨/重启保护，不依赖在线分配服务。格式、ID 语义及跨语言传输只引用[Snowflake 契约](../docs/architecture/data-architecture.md#3-snowflake-生成与传输契约)，workerId 物理分配和安全复用见[部署设计](../docs/DEPLOYMENT.md)。SDK 内部算法、时钟/重启策略和故障向量随实际实现验证，不复制 epoch/位布局为另一份规范。
 
-Maia 已选择 TiDB、Drizzle、MySQL 8.0 兼容子集与全局 Snowflake。Seed 若提供数据库适配，只治理 Drizzle/mysql2 连接生命周期和技术错误；业务 Schema、查询、规则和分析口径留在所属服务。不可将存储过程、数据库业务触发器、复杂 JSON/全文或 TiDB 专有 SQL 包装成“通用能力”绕过上游原则。
+### 3.2 access-scope-kernel.v1
 
-适用的运行时、编译器和数据库组件版本继承 [Maia 已确定组件版本](../docs/architecture/technology-stack.md#2-组件版本基线)。数据库适配及示例遵守 [Drizzle 使用边界](../docs/architecture/data-architecture.md#4-drizzle-与-tidb-兼容边界)：禁止 Relational Query API 的关系加载 `with`，不得在 helper/插件中恢复同类自动查询和嵌套组装。消费者仍可使用显式 JOIN；SQL CTE 的 `WITH` 不属于该禁令。
+纯算法输入为 Owner、使用范围元素及 Mud 发布的 AccessContext，输出单条 Own/Use/拒绝与原因，以及可下推集合过滤条件。输入含根边界与版本；缺失上下文、未知版本或跨根拒绝。具体谓词只以[权限模型](../docs/product/constraints/permission-model.md#217-判定契约)和[授权上下文与裁决](../docs/architecture/public-data-contracts.md#11-授权上下文与裁决)为准。
 
-包管理、Schema 技术适配、测试与构建工具均继承上游技术栈版本基线的精确版本，遵守 [Maia 工程默认值与决策边界](../docs/architecture/technology-stack.md#4-工程默认值与决策边界)：使用固定 pnpm 版本并提交锁文件，只引入能力实际需要的依赖。
+kernel 不读取成员关系、不保存树路径/上级 ID、不处理附属映射、业务依赖或能力兼容性。输入形状/纯函数 API、集合过滤语义和一致性夹具由实际消费者契约固定；Mud 发布身份事实，各资源服务执行最终用例，不能将算法包变成在线鉴权服务。
 
-**`maia-snowflake` 是 Seed 提供的本地 ID SDK（`seed.snowflake`）。** 统一实现生成、编解码、校验及并发/回拨/重启保护，以版本化 TS/npm 制品交付。格式及业务语义继承 [Maia Snowflake v1](../docs/architecture/data-architecture.md#3-snowflake-生成与传输契约)，所有 TS 服务包括 Mud 均直接复用；库不调用 Mud 或依赖在线分配服务。workerId 由部署配置保证唯一分配与安全复用，详见 [部署文档](../docs/DEPLOYMENT.md)。算法细节和故障测试留在 SDK 实现设计中，Celt 按平台协议无损传递 ID。
+### 3.3 其他技术适配
 
-**`access-scope-kernel.v1` 是纯授权范围算法**，语义以 [Maia §2.1 权限模型](../docs/product/constraints/permission-model.md#21-权限模型) 与 [授权上下文与裁决](../docs/architecture/public-data-contracts.md#11-授权上下文与裁决) 为准，由实际消费者需求驱动交付：
+实际需要 DB 适配时仅治理 Drizzle/mysql2 连接生命周期和技术错误；示例/helper/插件同样遵守[数据库及 Drizzle 边界](../docs/architecture/data-architecture.md#4-drizzle-与-tidb-兼容边界)，不得包装被禁能力绕过总仓约束。其他技术能力也须有 capability ID、消费者、输入输出、失败语义及兼容测试，不以公共包名预建全套模块。
 
-| 输入 | 内容 |
-|---|---|
-| Owner | `owner_workspace_id`（W）与可空的 `owner_user_id`（U，表示个人节点 W/U） |
-| 使用范围元素 | 指定 User，或指定 Workspace（仅本级 / 含下级）；为空表示仅 Owner |
-| AccessContext | 由 Mud 发布：请求主体的直接成员关系及其上级链、有效 `manager` 集合 `{workspaceId, source(direct\|inherited), viaWorkspaceId}`、version |
+## 4. 制品与消费者验证
 
-- **Own**：`owner_workspace_id` ∈ 有效 `manager` 集合，或（`owner_user_id` = 本人，且 `owner_workspace_id` ∈ 本人直接成员关系）。
-- **Use**：Own，或使用范围元素命中本人、本人直接所属的 Workspace，或上级链中选择“含下级”的 Workspace。
-- 输出单条裁决（Own / Use / 拒绝及原因）与可下推的集合过滤条件；AccessContext 缺失、版本未知或根 Workspace 不一致时拒绝。
-- 不读取成员关系、不调用 Mud、不保存路径或上级 ID，不处理附属对象映射、依赖资源校验或能力兼容性；这些留在消费服务。
+运行时、编译器、依赖和包管理精确版本继承[技术栈基线](../docs/architecture/technology-stack.md)，包的 engines/peer、ESM/CJS 及兼容范围按实际消费者声明；按必要功能拆包，避免无关消费者加载 DB/加密依赖。
 
-数据库与 ID 的完整约束见 [Maia 数据库及 ID 原则](../docs/architecture/data-architecture.md#2-数据库五条硬约束)。
+制品绑定包名、版本、完整性摘要、源码提交、签名及 SBOM/provenance；消费方验证组织信任根并锁定制品，Test/Production 不用浮动标签、Git/path 依赖或同版本重打包。制品治理只在总仓维护，Seed 提供真实包契约及其可复验消费者证据。
 
-采用已选 TypeScript strict / Node.js 基线；包名、模块拆分、ESM/CJS、面向已选 Node 基线的 engines/peer 兼容声明和测试工具在包契约中声明，不另选运行时或编译器版本。按必要功能拆分，避免无关消费者加载数据库/加密等依赖。
-
-公开接口须可独立测试、版本化且不含消费者业务语义。每个公共能力有 capability ID、消费者、输入/输出和失败语义、一致性/兼容测试。只有存在需求且技术边界稳定才进入公共包；单消费者的业务适配留在消费工程。
-
-## 4. 制品与依赖契约
-
-公共包以不可变 npm 制品交付，绑定包名、精确版本、完整性摘要、源码提交、签名与 SBOM/provenance。消费工程验证组织信任根，锁定版本和制品完整性，并执行消费者契约测试；Test/Production 不使用浮动标签、Git/path 依赖或同版本重打包。
+验证覆盖独立纯函数/失败语义、消费者兼容及实际采用机制；Snowflake 的大整数、回拨/重启与并发向量，kernel 的根隔离、成员/继承命中和集合谓词一致性分别跟随包交付，不替代消费服务的业务授权验收。公共抽象的新增遵守[架构取舍](../ARCHITECTURE.md#12-架构取舍原则)，运行资源与基础设施配置仅引用部署文档。
