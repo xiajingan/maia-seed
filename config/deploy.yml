@@ -1,6 +1,5 @@
 # 尚无可部署业务制品。配置真实环境、Chart、Secret 引用并验收后方可启用。
 version: 1
-baseline_id: maia-greenfield-20260920
 promote_strategy: manual
 build:
   targets: {}

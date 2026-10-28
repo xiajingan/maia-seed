@@ -1,5 +1,5 @@
 # test-cases 索引
 
-> 基线：`maia-greenfield-20260920`；更新：2026-09-20。来源：[需求](../../../docs/product/seed/overview.md)、[架构](../../ARCHITECTURE.md)。
+> 来源：[需求](../../../docs/product/seed/overview.md)、[架构](../../ARCHITECTURE.md)。
 
-当前无条目。旧业务记录已保存到仓库外快照，不作为本基线输入或交付证据。
+当前无条目。用例随实际业务实现与验收补充，文档检查不代表行为验证通过。
