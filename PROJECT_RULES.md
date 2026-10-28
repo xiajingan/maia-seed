@@ -1,39 +1,13 @@
-# 项目规则
+# Seed 工程规则
 
-> 基线：`maia-greenfield-20260920`；更新：2026-09-20。架构与需求以 [ARCHITECTURE.md](ARCHITECTURE.md)、[产品需求](../docs/product/seed/overview.md) 为准。
+本工程遵守[总仓项目规则](../PROJECT_RULES.md)；本文只补充本工程适用差异。技术栈为 TypeScript / Node.js / npm library，版本及边界以[本工程架构](ARCHITECTURE.md)和[技术栈基线](../docs/architecture/technology-stack.md)为准。
 
-## 当前阶段
+## 本工程约束
 
-重建输入、Review 和确认先于实现；当前无 active Sprint、可部署业务制品或已接受新 Delivery。旧实现与执行状态不能用于跳过新基线门禁。不要创建空 package.json、占位 API 或总是成功的测试来消除缺失能力诊断。
+- 公共 API 保持纯技术边界，不含业务模型/SQL、成员关系读取、业务状态或在线鉴权服务；按真实能力拆包，避免无关消费者加载 DB/加密依赖。
+- 已明确的 maia-snowflake 及实际采用的纯授权算法按[包契约](ARCHITECTURE.md#3-当前契约)验证输入输出、错误、兼容和消费者行为，不以新增独立产品 Story 为默认前置。
+- 包的 engines/peer、ESM/CJS 和依赖范围按真实消费者声明；制品不可同版本重打包。纯函数与包内测试不替代消费服务的授权/恢复验收。
 
-## 文档边界
+## 检查要求
 
-架构与技术方案只定义技术选型、领域/数据所有权、接口协议、安全、一致性与失败行为。TiDB、SeaweedFS、BullMQ/Redis 等资源、节点、拓扑、网络入口、PV、镜像/Chart 和部署要求只维护在 [Maia 部署文档](../docs/DEPLOYMENT.md) 及其环境手册；技术方案引用入口，不复制部署内容。Snowflake 生成器编号属于算法契约，其物理实例映射才属于部署。待验证项由工程完成，不默认转成用户逐项选型或批准。
-
-## 实现边界
-
-- TS strict / Node.js 为服务与公共包主栈，HTTP 使用 Fastify。Celt 与开发脚本的 Python 不构成业务服务例外扩张。
-- 边界执行运行时 Schema 校验；使用 unknown 收窄输入，避免无约束 any；函数/类型命名明确，模块按职责拆分。
-- 数据归属、租户和授权检查集中于用例；禁止跨服务读表、复制 Provider 实现或让前端提交授权事实。
-- 领域不耦合传输/数据库引擎；SQL 参数化，Schema 只经所属服务的版本化迁移。
-- 外部调用、消息与异步重试明确幂等及结果未知语义；禁止无限重试和吞掉异常冒充成功。
-- 结构化日志关联请求与业务 ID，凭据与敏感原文不明文进入日志、事件或模型上下文。
-- 按 [Maia 架构取舍原则](../ARCHITECTURE.md#12-架构取舍原则) 以复杂度、维护/扩展成本和可观测、可用性、并发、安全证据评估设计。队列默认原生 BullMQ 接入，不要求独立 maia-mq；Seed 只交付真实需要的技术包，服务及其客户端须有明确所有者和存在理由。
-
-## 数据库与业务 ID
-
-遵守 [Maia 架构 DB-01～05](../docs/architecture/data-architecture.md#2-数据库五条硬约束) 与 Snowflake 契约：TiDB HTAP、Drizzle MySQL 方言、MySQL 8.0 兼容子集；业务逻辑在代码，不使用存储过程/数据库业务编程、复杂 JSON 查询或全文索引。业务主键/引用为 Snowflake BIGINT，API/事件/队列用十进制字符串，禁止 JS number 转换和数据库自增代替。
-
-使用已固定的 [Snowflake v1 格式及 SDK 契约](../docs/architecture/data-architecture.md#3-snowflake-生成与传输契约)，不得按工程、租户或业务修改 epoch/位布局；唯一公共实现归 Seed 的 maia-snowflake（seed.snowflake），所有 TS 服务锁定消费，不各自复制算法；发号不依赖在线服务，workerId 唯一分配与安全复用由部署配置保障。
-
-Review 覆盖 ORM 生成 SQL、迁移与必要手写 SQL，以及 ID 精度、全局节点分配和回拨/重启语义。JSON 载荷存储与标准关系查询不等同于获准使用复杂 JSON 函数；ORM 参数化也不等同于语法或执行语义已验证。
-
-按 [Maia Drizzle 使用边界](../docs/architecture/data-architecture.md#4-drizzle-与-tidb-兼容边界)，禁止 Relational Query API 的关系加载 `with`（含 `findMany`、`findFirst` 及封装），技术适配与示例不得绕过。使用 Drizzle 显式查询构建，普通 JOIN 允许；符合兼容规则的 SQL CTE `WITH` / `db.$with()` / `db.with()` 不在此禁令内。Review 必须辨别 API 语义，不以关键词扫描宣称已完成自动检查。
-
-## 验证与交付
-
-构建与契约验收沿用 [Maia 已确定组件版本](../docs/architecture/technology-stack.md#2-组件版本基线)，只引入能力实际需要的依赖；包的 peer/engines 范围由已接受的消费者契约确定。安全修复与受控升级按架构更新，不能把锁定解释为长期不升级。
-
-业务实现建立后，在 `package.json` 与 CI 登记真实 lint/typecheck、行为测试、构建及相关数据库/契约命令。覆盖授权拒绝、跨租户隔离、恢复与外部副作用；文档检查不能替代业务验收。Node、npm 依赖、OCI 镜像和引擎版本必须锁定，升级有消费者验证和恢复证据。
-
-文档重设当前只运行需求结构、链接、配置及 diff 检查。性能/容量/覆盖阈值由新设计的风险和验收决定，不继承旧测试报告中的达标结论。
+当前文档变更执行结构、链接/锚点、语义与 diff 检查；实现建立后按真实清单/CI 登记与 公共技术包与消费者契约 相关的静态、行为、契约及必要环境验证。只运行已配置且适用于本次变更的检查，不使用占位命令、不宣称尚未验证的门槛已通过。

@@ -1,9 +1,18 @@
 # maia-seed
 
-基线：`maia-greenfield-20260920`。旧项目实现和执行数据已归档，当前是待 Review 的新设计输入，没有运行中的新业务实现。
+按真实消费者需求交付的公共技术包，不运行独立业务服务。
 
-- [架构](ARCHITECTURE.md)
-- [用户故事](../docs/product/seed/overview.md)
-- [上游 Maia 架构](../ARCHITECTURE.md)
+技术栈：TypeScript / Node.js / npm library；具体版本见[技术栈基线](../docs/architecture/technology-stack.md)。
 
-治理检查由 mai-skills 的评审与迭代流程承担。当前没有已接受需求；消费者 dependency 到达并接受后才建立新 Story。
+当前处于需求与设计评审阶段，无运行中的新业务实现；阶段和流程入口以[总仓状态](../AGENTS.md#当前迭代)为准。
+
+已明确由 Seed 实现 `maia-snowflake` 本地 ID SDK，当前尚无可消费的新制品。公共能力随真实消费者工程任务落实接口与验收；没有独立产品故事不等于没有技术职责，也不要求先另建 Story。
+
+## 阅读入口
+
+- [本工程架构](ARCHITECTURE.md)：结构、数据/模块职责及边界。
+- [工程职责与需求](../docs/product/seed/overview.md)：先看当前采用范围，再按[主故事索引](../docs/product/index.md)与[故事地图](../docs/product/story-map.md)选取业务。
+- [公共规则](../PROJECT_RULES.md)与[工程规则](PROJECT_RULES.md)：实施及检查要求；[AGENTS](AGENTS.md)提供任务导航。
+- [总仓架构分篇](../ARCHITECTURE.md#2-架构分篇索引)和[部署设计](../docs/DEPLOYMENT.md)：跨工程契约、运行及发布配置。
+
+`docs/tech/` 保存当前模块设计，`docs/test-cases/` 保存本工程用例；迭代过程记录统一在总仓。实际运行命令在业务实现建立后由本工程真实清单和 CI 登记，不以当前文档代表已可启动或验收通过。
