@@ -16,7 +16,7 @@ Seed 为实际 TS/Node.js 消费服务提供版本化 npm 技术包，不部署�
 | DB/Redis 生命周期、健康和技术故障映射 | Repository、SQL、Schema、业务 key/TTL 及幂等 |
 | 已接受需求的纯授权算法及一致性夹具 | Mud 的 AccessContext，资源服务的 AccessMetadata/附属映射及最终授权 |
 
-Seed 不读业务表、不调用 Mud/Stem、不反向依赖消费者，也不运行 Worker/业务 handler 或队列台账。队列使用[原生 BullMQ 边界](../docs/architecture/async-jobs.md#1-能力优先与默认接入)，多个真实消费者确有重复技术需要时才提供薄适配，不预建 mq-client/Broker。服务 API 客户端由真实所有者治理，Iris 模型和 checkpoint 适配留在 Iris。
+Seed 不读业务表、不调用 Mud/Stem、不反向依赖消费者，也不运行 Worker/业务 handler 或队列台账。队列使用[原生 BullMQ 边界](../docs/architecture/async-jobs.md#1-职责与整体处理链路)，多个真实消费者确有重复技术需要时才提供薄适配，不预建 mq-client/Broker。服务 API 客户端由真实所有者治理，Iris 模型和 checkpoint 适配留在 Iris。
 
 ## 3. 当前契约
 
