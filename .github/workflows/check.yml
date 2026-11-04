@@ -1,0 +1,16 @@
+name: check
+on: [push, pull_request]
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.5.1
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm --dir packages/maia-snowflake pack --pack-destination ../../artifacts

@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "packages/maia-snowflake/src",
+    "outDir": "packages/maia-snowflake/dist",
+    "declaration": true,
+    "sourceMap": true
+  },
+  "include": ["packages/maia-snowflake/src/**/*.ts"]
+}

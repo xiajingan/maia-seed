@@ -1,0 +1,7 @@
+packages:
+  - packages/*
+overrides:
+  vite: 8.3.0
+  typescript: 6.0.3
+  '@types/node': 24.13.6
+  '@typescript-eslint/parser': 8.70.0
